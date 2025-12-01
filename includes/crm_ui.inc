@@ -591,6 +591,298 @@ function location_type_list_row($label, $name, $value = null)
 /**
  * Meeting rooms dropdown
  */
+function meeting_rooms_list_row($label, $name, $value = null)
+{
+	global $db;
+
+	$sql = "SELECT id, room_name, room_type FROM " . TB_PREF . "crm_meeting_rooms WHERE active = 1 ORDER BY room_name";
+	$result = db_query($sql);
+
+	$options = array('' => _("Select Room"));
+	while ($room = db_fetch($result)) {
+		$type_label = '';
+		switch ($room['room_type']) {
+			case 'physical': $type_label = ' (Physical)'; break;
+			case 'virtual': $type_label = ' (Virtual)'; break;
+			case 'phone': $type_label = ' (Phone)'; break;
+		}
+		$options[$room['id']] = $room['room_name'] . $type_label;
+	}
+
+	echo '<tr><td class="label">' . $label . '</td><td>';
+	echo array_selector($name, $value, $options);
+	echo '</td></tr>';
+}
+
+/**
+ * Meeting status dropdown
+ */
+function meeting_status_list_row($label, $name, $value = null)
+{
+	$statuses = array(
+		'planned' => _("Planned"),
+		'confirmed' => _("Confirmed"),
+		'in_progress' => _("In Progress"),
+		'completed' => _("Completed"),
+		'cancelled' => _("Cancelled"),
+		'postponed' => _("Postponed")
+	);
+
+	echo '<tr><td class="label">' . $label . '</td><td>';
+	echo array_selector($name, $value, $statuses);
+	echo '</td></tr>';
+}
+
+/**
+ * Attendee role dropdown
+ */
+function attendee_role_list_row($label, $name, $value = null)
+{
+	$roles = array(
+		'organizer' => _("Organizer"),
+		'required' => _("Required"),
+		'optional' => _("Optional"),
+		'resource' => _("Resource")
+	);
+
+	echo '<tr><td class="label">' . $label . '</td><td>';
+	echo array_selector($name, $value, $roles);
+	echo '</td></tr>';
+}
+
+/**
+ * Response status dropdown
+ */
+function response_status_list_row($label, $name, $value = null)
+{
+	$statuses = array(
+		'pending' => _("Pending"),
+		'accepted' => _("Accepted"),
+		'declined' => _("Declined"),
+		'tentative' => _("Tentative")
+	);
+
+	echo '<tr><td class="label">' . $label . '</td><td>';
+	echo array_selector($name, $value, $statuses);
+	echo '</td></tr>';
+}
+
+/**
+ * Time zone dropdown
+ */
+function time_zone_list_row($label, $name, $value = null)
+{
+	$timezones = array(
+		'UTC' => 'UTC',
+		'America/New_York' => 'Eastern Time',
+		'America/Chicago' => 'Central Time',
+		'America/Denver' => 'Mountain Time',
+		'America/Los_Angeles' => 'Pacific Time',
+		'Europe/London' => 'London',
+		'Europe/Paris' => 'Paris',
+		'Asia/Tokyo' => 'Tokyo',
+		'Australia/Sydney' => 'Sydney'
+	);
+
+	echo '<tr><td class="label">' . $label . '</td><td>';
+	echo array_selector($name, $value, $timezones);
+	echo '</td></tr>';
+}
+
+/**
+ * Display meeting attendees
+ */
+function display_meeting_attendees($meeting_id)
+{
+	$attendees = get_meeting_attendees($meeting_id);
+
+	if (db_num_rows($attendees) == 0) {
+		echo '<p>' . _("No attendees added yet.") . '</p>';
+		return;
+	}
+
+	start_table(TABLESTYLE);
+	table_header(array(_("Name"), _("Type"), _("Role"), _("Email"), _("Response"), _("Actions")));
+
+	while ($attendee = db_fetch($attendees)) {
+		start_row();
+
+		// Name
+		$name = '';
+		if ($attendee['attendee_type'] == 'employee') {
+			$name = $attendee['employee_name'];
+		} elseif ($attendee['attendee_type'] == 'contact') {
+			$name = $attendee['first_name'] . ' ' . $attendee['last_name'];
+		} elseif ($attendee['attendee_type'] == 'external') {
+			$name = $attendee['external_name'];
+		}
+		label_cell($name);
+
+		// Type
+		label_cell(ucfirst($attendee['attendee_type']));
+
+		// Role
+		label_cell(ucfirst($attendee['attendee_role']));
+
+		// Email
+		$email = '';
+		if ($attendee['attendee_type'] == 'employee') {
+			$email = $attendee['employee_email'];
+		} elseif ($attendee['attendee_type'] == 'contact') {
+			$email = $attendee['contact_email'];
+		} elseif ($attendee['attendee_type'] == 'external') {
+			$email = $attendee['external_email'];
+		}
+		label_cell($email);
+
+		// Response status
+		$response_class = '';
+		switch ($attendee['response_status']) {
+			case 'accepted': $response_class = 'text-success'; break;
+			case 'declined': $response_class = 'text-danger'; break;
+			case 'tentative': $response_class = 'text-warning'; break;
+		}
+		label_cell('<span class="' . $response_class . '">' . ucfirst($attendee['response_status']) . '</span>');
+
+		// Actions
+		$actions = '';
+		if ($attendee['attendee_type'] != 'external' || $attendee['external_email']) {
+			$actions .= '<button class="btn btn-sm btn-outline-primary" onclick="sendMeetingInvite(' . $meeting_id . ', ' . $attendee['id'] . ')">Send Invite</button> ';
+		}
+		$actions .= '<button class="btn btn-sm btn-outline-danger" onclick="removeAttendee(' . $attendee['id'] . ')">Remove</button>';
+		label_cell($actions);
+
+		end_row();
+	}
+
+	end_table();
+}
+
+/**
+ * Display upcoming meetings widget
+ */
+function upcoming_meetings_widget($user_id = null, $limit = 5)
+{
+	$meetings = get_upcoming_meetings(30, $user_id); // Next 30 days
+
+	if (db_num_rows($meetings) == 0) {
+		echo '<div class="alert alert-info">' . _("No upcoming meetings.") . '</div>';
+		return;
+	}
+
+	echo '<div class="list-group">';
+	$count = 0;
+
+	while ($meeting = db_fetch($meetings) && $count < $limit) {
+		$start_date = strtotime($meeting['start_date']);
+		$end_date = strtotime($meeting['end_date']);
+
+		$date_display = date('M j, Y', $start_date);
+		$time_display = date('g:i A', $start_date) . ' - ' . date('g:i A', $end_date);
+
+		$status_class = '';
+		switch ($meeting['status']) {
+			case 'confirmed': $status_class = 'list-group-item-success'; break;
+			case 'planned': $status_class = 'list-group-item-warning'; break;
+		}
+
+		echo '<a href="/modules/CRM/pages/meetings.php?id=' . $meeting['id'] . '" class="list-group-item list-group-item-action ' . $status_class . '">';
+		echo '<div class="d-flex w-100 justify-content-between">';
+		echo '<h6 class="mb-1">' . htmlspecialchars($meeting['meeting_name']) . '</h6>';
+		echo '<small>' . $date_display . '</small>';
+		echo '</div>';
+		echo '<p class="mb-1">' . $time_display . '</p>';
+		if ($meeting['customer_name']) {
+			echo '<small>' . htmlspecialchars($meeting['customer_name']) . '</small>';
+		}
+		if ($meeting['room_name']) {
+			echo '<br><small class="text-muted">' . htmlspecialchars($meeting['room_name']) . '</small>';
+		}
+		echo '</a>';
+
+		$count++;
+	}
+
+	echo '</div>';
+}
+
+/**
+ * Meeting location display
+ */
+function display_meeting_location($meeting)
+{
+	if ($meeting['location_type'] == 'physical') {
+		if ($meeting['room_id']) {
+			$room = get_meeting_room($meeting['room_id']);
+			echo '<strong>' . _("Location:") . '</strong> ' . htmlspecialchars($room['room_name']);
+			if ($room['location']) {
+				echo ' - ' . htmlspecialchars($room['location']);
+			}
+			if ($room['capacity']) {
+				echo ' (' . _("Capacity:") . ' ' . $room['capacity'] . ')';
+			}
+		} elseif ($meeting['custom_location']) {
+			echo '<strong>' . _("Location:") . '</strong> ' . htmlspecialchars($meeting['custom_location']);
+		}
+	} elseif ($meeting['location_type'] == 'virtual') {
+		echo '<strong>' . _("Virtual Meeting") . '</strong>';
+		if ($meeting['meeting_url']) {
+			echo '<br><a href="' . htmlspecialchars($meeting['meeting_url']) . '" target="_blank">' . htmlspecialchars($meeting['meeting_url']) . '</a>';
+		}
+		if ($meeting['conference_url']) {
+			echo '<br><a href="' . htmlspecialchars($meeting['conference_url']) . '" target="_blank">' . _("Join Conference") . '</a>';
+		}
+	} elseif ($meeting['location_type'] == 'phone') {
+		echo '<strong>' . _("Phone Conference") . '</strong>';
+		if ($meeting['dial_in_number']) {
+			echo '<br><strong>' . _("Dial-in:") . '</strong> ' . htmlspecialchars($meeting['dial_in_number']);
+		}
+		if ($meeting['access_code']) {
+			echo '<br><strong>' . _("Access Code:") . '</strong> ' . htmlspecialchars($meeting['access_code']);
+		}
+		if ($meeting['host_pin']) {
+			echo '<br><strong>' . _("Host PIN:") . '</strong> ' . htmlspecialchars($meeting['host_pin']);
+		}
+	}
+}
+
+/**
+ * Meeting type dropdown
+ */
+function meeting_type_list_row($label, $name, $value = null)
+{
+	$types = array(
+		'meeting' => _("Meeting"),
+		'call' => _("Phone Call"),
+		'presentation' => _("Presentation"),
+		'training' => _("Training"),
+		'other' => _("Other")
+	);
+
+	echo '<tr><td class="label">' . $label . '</td><td>';
+	echo array_selector($name, $value, $types);
+	echo '</td></tr>';
+}
+
+/**
+ * Location type dropdown
+ */
+function location_type_list_row($label, $name, $value = null)
+{
+	$types = array(
+		'physical' => _("Physical Location"),
+		'virtual' => _("Virtual Meeting"),
+		'phone' => _("Phone Conference")
+	);
+
+	echo '<tr><td class="label">' . $label . '</td><td>';
+	echo array_selector($name, $value, $types);
+	echo '</td></tr>';
+}
+
+/**
+ * Meeting rooms dropdown
+ */
 function meeting_rooms_list_row($label, $name, $value = null, $location_type = null)
 {
 	global $db;

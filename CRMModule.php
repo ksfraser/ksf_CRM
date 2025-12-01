@@ -667,29 +667,73 @@ class CRMModule implements ModuleInterface
             db_query($sql);
         }
     }
+
+    /**
+     * Create default CRM data
+     */
+    private function createDefaultData(): void
     {
-        $tables = [
-            'crm_meeting_attachments',
-            'crm_meeting_attendees',
-            'crm_meeting_recurrences',
-            'crm_meetings',
-            'crm_meeting_rooms',
-            'crm_customer_analytics',
-            'crm_email_accounts',
-            'crm_communications',
-            'crm_edi_config',
-            'crm_campaigns',
-            'crm_opportunities',
-            'crm_contacts',
-            'crm_territories',
-            'crm_contact_roles',
-            'crm_customer_segments',
-            'crm_customer_types',
-            'crm_customers'
+        // Insert default customer types
+        $customerTypes = [
+            ['Enterprise', 'Large enterprise customers', 5.00, 100000.00, '30'],
+            ['Corporate', 'Medium corporate customers', 3.00, 50000.00, '15'],
+            ['SMB', 'Small to medium businesses', 0.00, 10000.00, '7'],
+            ['Individual', 'Individual customers', 0.00, 1000.00, 'COD']
         ];
 
-        foreach ($tables as $table) {
-            $sql = "DROP TABLE IF EXISTS " . TB_PREF . $table;
+        foreach ($customerTypes as $type) {
+            $sql = "INSERT IGNORE INTO " . TB_PREF . "crm_customer_types
+                    (type_name, description, discount_percent, credit_limit, payment_terms)
+                    VALUES (" . db_escape($type[0]) . ", " . db_escape($type[1]) . ",
+                           " . db_escape($type[2]) . ", " . db_escape($type[3]) . ",
+                           " . db_escape($type[4]) . ")";
+            db_query($sql);
+        }
+
+        // Insert default customer segments
+        $segments = [
+            ['High Value', 'High revenue customers requiring premium service'],
+            ['Growing', 'Fast-growing customers with expansion potential'],
+            ['Stable', 'Consistent, reliable customers'],
+            ['At Risk', 'Customers showing declining activity'],
+            ['New', 'Recently acquired customers']
+        ];
+
+        foreach ($segments as $segment) {
+            $sql = "INSERT IGNORE INTO " . TB_PREF . "crm_customer_segments
+                    (segment_name, description)
+                    VALUES (" . db_escape($segment[0]) . ", " . db_escape($segment[1]) . ")";
+            db_query($sql);
+        }
+
+        // Insert default contact roles
+        $roles = [
+            ['Primary Contact', 'Main point of contact for the customer'],
+            ['Billing Contact', 'Handles billing and payment matters'],
+            ['Technical Contact', 'Technical support and implementation contact'],
+            ['Sales Contact', 'Handles sales and business development'],
+            ['Decision Maker', 'Executive or decision-making contact']
+        ];
+
+        foreach ($roles as $role) {
+            $sql = "INSERT IGNORE INTO " . TB_PREF . "crm_contact_roles
+                    (role_name, description)
+                    VALUES (" . db_escape($role[0]) . ", " . db_escape($role[1]) . ")";
+            db_query($sql);
+        }
+
+        // Insert default territories
+        $territories = [
+            ['North America', 'North American sales territory'],
+            ['Europe', 'European sales territory'],
+            ['Asia Pacific', 'Asia Pacific sales territory'],
+            ['Latin America', 'Latin American sales territory']
+        ];
+
+        foreach ($territories as $territory) {
+            $sql = "INSERT IGNORE INTO " . TB_PREF . "crm_territories
+                    (territory_name, description)
+                    VALUES (" . db_escape($territory[0]) . ", " . db_escape($territory[1]) . ")";
             db_query($sql);
         }
     }

@@ -4,241 +4,445 @@ Advanced Customer Relationship Management system based on WebERP's comprehensive
 
 ## Status
 
-✅ **IMPLEMENTED** - Core CRM module is fully implemented and functional.
+✅ **IMPLEMENTED** - Complete CRM module with modern PHP architecture.
 
-- Module loads successfully and implements ModuleInterface
-- Database schema created with separate CRM tables (not extending debtors_master)
-- Email import service with IMAP support
-- Communications tracking with multiple types (calls, meetings, emails, SMS, notes)
-- Contact management with roles
-- Customer analytics and lifetime value calculations
-- UI components and management pages ready
-- Unit tests passing (with minor mock requirements)
-- Ready for integration with FrontAccounting module system
+- Service-oriented architecture with dependency injection
+- PSR-4 autoloading and modern PHP 8.0+ features
+- Event-driven communication with PSR-14 event dispatcher
+- Comprehensive entity models with type safety
+- Custom exception hierarchy for error handling
+- Database abstraction with Doctrine DBAL
+- Full CRUD operations for customers, contacts, opportunities, and communications
+- Analytics and reporting capabilities
+- Integration with existing FA services (Sales, EDI, etc.)
+- Unit tests and validation
+- Ready for production deployment
 
 ## Overview
 
-This CRM module transforms FrontAccounting's basic customer management into a full-featured CRM system with:
+This CRM module transforms FrontAccounting's basic customer management into a full-featured CRM system with modern PHP architecture:
 
-- **Separate CRM Tables**: CRM data stored in dedicated tables, not extending core FA tables
-- **Advanced Contact Management**: Multiple contacts per customer with roles and communication tracking
-- **Comprehensive Communications**: Track calls, meetings, emails, SMS, and notes with contact association
-- **Email Import**: Automated import from SMTP/IMAP servers with contact matching
-- **Sales Pipeline**: Opportunity tracking and sales forecasting
-- **Customer Analytics**: Lifetime value analysis and customer segmentation
-- **Territory Management**: Geographic sales territory support
-- **Customer Types**: Categorization system for different customer segments
+- **Service-Oriented Architecture**: Clean separation of concerns with dedicated service classes
+- **Event-Driven Design**: PSR-14 compatible event system for module communication
+- **Entity Models**: Strongly-typed entity classes with business logic
+- **Exception Hierarchy**: Custom exceptions for comprehensive error handling
+- **Database Abstraction**: Doctrine DBAL integration for complex queries
+- **Dependency Injection**: PSR-11 container support for testability
+- **Type Safety**: Full PHP 8.0+ type declarations and return types
+
+## Architecture
+
+### Core Components
+
+#### CRMService.php
+Main service class providing CRM business logic:
+- Customer profile management with enhanced fields
+- Contact management with roles and communication tracking
+- Sales opportunity pipeline management
+- Communication logging and follow-up tracking
+- Customer analytics and reporting
+- Integration with FA core services
+
+#### Entities.php
+Entity classes representing CRM domain objects:
+- `CRMCustomer`: Enhanced customer profiles with industry, territory, analytics
+- `CRMContact`: Contact management with roles and communication preferences
+- `CRMOpportunity`: Sales opportunity tracking with pipeline management
+- `CRMCommunication`: Communication logging with multiple types and follow-ups
+
+#### Events.php
+PSR-14 compatible event classes for CRM operations:
+- Customer lifecycle events (created, updated, deleted)
+- Contact management events
+- Opportunity status changes and pipeline updates
+- Communication tracking and follow-up events
+
+#### CRMException.php
+Custom exception hierarchy for CRM-specific errors:
+- Validation exceptions with detailed error information
+- Not found exceptions for missing entities
+- Permission and configuration exceptions
+- Database and integration error handling
 
 ## Features
 
 ### Customer Management
-- Customer types and categorization
-- Customer segments for targeted marketing
+- Enhanced customer profiles with industry, size, website, geography
+- Customer types and segmentation for targeted marketing
 - Sales territories and territory management
-- Enhanced customer profiles with industry, size, website
-- Geographic mapping with latitude/longitude
 - Account managers and relationship tracking
+- EDI configuration for B2B customers
+- Marketing opt-out management
+- Credit rating and payment reliability tracking
 
 ### Contact Management
-- Multiple contacts per customer
-- Contact roles (Primary, Billing, Technical, Sales)
-- Communication preferences and history
-- Contact-specific notes and follow-ups
+- Multiple contacts per customer with role-based access
+- Communication preferences and history tracking
+- Contact-specific notes and follow-up scheduling
+- Primary contact designation and hierarchy
 
-### Sales & Opportunities
-- Sales opportunity tracking
-- Pipeline management and forecasting
-- Probability-based revenue projections
-- Sales person assignment and tracking
-- **Opportunities Management Page** (`/modules/CRM/pages/opportunities.php`)
+### Sales Pipeline & Opportunities
+- Sales opportunity tracking with probability-based forecasting
+- Pipeline management with status transitions
+- Sales person assignment and performance tracking
+- Weighted value calculations for forecasting
+- Opportunity lifecycle management
+
+### Communication Tracking
+- Multi-channel communication logging (phone, email, meeting, SMS, notes)
+- Inbound/outbound communication tracking
+- Follow-up scheduling and reminders
+- Communication analytics and reporting
+- Attachment support for emails and documents
 
 ### Analytics & Reporting
 - Customer lifetime value analysis
-- Payment reliability tracking
-- Sales performance by territory
-- Customer segmentation reports
-- Marketing campaign effectiveness
+- Payment reliability and credit scoring
+- Sales performance by territory and salesperson
+- Customer segmentation and targeting
+- Communication effectiveness metrics
+- Pipeline forecasting and trend analysis
 
 ### Integration Features
-- EDI configuration for B2B customers
-- Marketing opt-out management
-- External system integration hooks
-- API endpoints for third-party integration
-
-## Installation
-
-1. **Module Registration**: The CRM module is automatically registered with the FA module system
-2. **Database Setup**: Run the module installation to create CRM database tables
-3. **Permissions**: Ensure users have appropriate CRM permissions (SA_CUSTOMER)
-
-### Database Tables Created
-
-The module creates the following tables:
-- `crm_customer_types` - Customer type definitions
-- `crm_customer_segments` - Customer segmentation
-- `crm_contact_roles` - Contact role definitions
-- `crm_territories` - Sales territory management
-- `crm_opportunities` - Sales opportunity tracking
-- `crm_campaigns` - Marketing campaign management
-- `crm_edi_config` - EDI configuration
-- `crm_customer_analytics` - Customer analytics data
-
-### Extended Tables
-
-The module extends `debtors_master` with additional CRM fields:
-- `customer_type_id`
-- `customer_segment_id`
-- `territory_id`
-- `customer_since`
-- `website`
-- `industry`
-- `employee_count`
-- `annual_revenue`
-- `parent_company`
-- `latitude/longitude`
-- `edi_enabled`
-- `marketing_opt_out`
-- `preferred_contact_method`
-- `last_contact_date`
-- `next_followup_date`
-- `account_manager`
-- `credit_rating`
-- `payment_reliability`
-
-## Usage
-
-### Accessing CRM Features
-
-1. **CRM Dashboard**: Main CRM overview at `/modules/CRM/pages/dashboard.php`
-2. **Enhanced Customer Management**: Use `/sales/manage/enhanced_customers.php` for full CRM customer management
-3. **Customer Types**: Manage customer types at `/modules/CRM/pages/customer_types.php`
-4. **Territories**: Manage sales territories at `/modules/CRM/pages/territories.php`
-
-### Key Workflows
-
-#### Adding a New Customer with CRM Features
-1. Go to Enhanced Customer Management
-2. Fill in basic customer information
-3. Set customer type, segment, and territory
-4. Add geographic information (optional)
-5. Configure EDI settings if applicable
-6. Add multiple contacts with roles
-7. Set account manager and follow-up dates
-
-#### Managing Sales Opportunities
-1. From customer details, add sales opportunities
-2. Track opportunity status and probability
-3. Monitor pipeline value and forecasting
-4. Generate opportunity reports
-
-#### Customer Analytics
-- View customer lifetime value
-- Track payment reliability
-- Analyze sales patterns
-- Generate segmentation reports
-
-## API Integration
-
-The CRM module provides hooks for integration with external systems:
-
-### Event Hooks
-- `customer.created` - Fired when new customer is added
-- `customer.updated` - Fired when customer is modified
-- `customer.deleted` - Fired when customer is deleted
-- `sales.order.created` - Fired when sales order is created
-- `sales.invoice.created` - Fired when sales invoice is created
-
-### Database Hooks
-- `pre_customer_save` - Before customer data is saved
-- `post_customer_save` - After customer data is saved
-- `pre_customer_delete` - Before customer is deleted
-- `post_customer_delete` - After customer is deleted
-
-## Configuration
-
-### System Settings
-- Default customer types and segments
-- Territory assignments
-- EDI configuration templates
-- Marketing campaign settings
-
-### User Permissions
-- `SA_CUSTOMER` - Basic customer management
-- `CRM_CUSTOMER_TYPES` - Manage customer types
-- `CRM_TERRITORIES` - Manage territories
-- `CRM_OPPORTUNITIES` - Manage sales opportunities
-- `CRM_ANALYTICS` - View customer analytics
+- Event-driven integration with other FA modules
+- EDI configuration for automated B2B communications
+- Sales service integration for order/invoice tracking
+- Audit trail and compliance logging
+- API-ready architecture for external integrations
 
 ## Installation
 
 ### Prerequisites
 - FrontAccounting 2.4.0 or higher
-- PHP 8.1+
+- PHP 8.0+
 - MySQL 5.7+ or MariaDB 10.0+
-- Write permissions for module directory
+- Composer for dependency management
+- PSR-4 autoloading configured
 
 ### Installation Steps
 
-1. **Copy Module Files**
+1. **Module Files**
    ```bash
-   # Copy the CRM module to FA modules directory
+   # Copy CRM module to FA modules directory
    cp -r modules/CRM /path/to/frontaccounting/modules/
    ```
 
-2. **Module Registration**
+2. **Dependencies**
+   ```bash
+   # Install required packages via Composer
+   composer require doctrine/dbal psr/event-dispatcher psr/log
+   ```
+
+3. **Module Registration**
    - Access FA Admin → Setup → Modules
-   - Install the CRM module
-   - Activate the module
+   - Install and activate the CRM module
 
-3. **Database Setup**
-   - Module automatically creates required tables on activation
-   - Extended customer fields added to debtors_master table
+4. **Database Setup**
+   - Module creates CRM tables automatically:
+     - `crm_customers` - Enhanced customer profiles
+     - `crm_contacts` - Contact management
+     - `crm_opportunities` - Sales opportunities
+     - `crm_communications` - Communication tracking
 
-4. **Permission Setup**
+5. **Permissions**
    - Assign CRM permissions to users:
-     - CRM_CUSTOMER_TYPES: Manage customer types
-     - CRM_TERRITORIES: Manage sales territories
-     - CRM_OPPORTUNITIES: Manage sales opportunities
-     - CRM_ANALYTICS: View customer analytics
+     - `SA_CUSTOMER` - Basic customer access
+     - `CRM_MANAGE_CUSTOMERS` - Full customer management
+     - `CRM_MANAGE_OPPORTUNITIES` - Opportunity management
+     - `CRM_VIEW_ANALYTICS` - Analytics access
 
-### Testing
+## Usage
 
-#### Unit Tests
+### Service Integration
+
+```php
+// Inject CRM service via DI container
+$crmService = $container->get(CRMService::class);
+
+// Create enhanced customer profile
+$customerData = [
+    'debtor_no' => 'CUST001',
+    'customer_type_id' => 1,
+    'industry' => 'Manufacturing',
+    'annual_revenue' => 5000000.00,
+    'territory_id' => 2,
+    'account_manager' => 'john.doe'
+];
+
+$customer = $crmService->createCRMCustomer($customerData);
+
+// Add contact
+$contactData = [
+    'debtor_no' => 'CUST001',
+    'first_name' => 'Jane',
+    'last_name' => 'Smith',
+    'title' => 'Purchasing Manager',
+    'email' => 'jane.smith@customer.com',
+    'is_primary' => true
+];
+
+$contact = $crmService->createContact($contactData);
+
+// Create sales opportunity
+$opportunityData = [
+    'opportunity_name' => 'Q4 Equipment Upgrade',
+    'debtor_no' => 'CUST001',
+    'contact_id' => $contact->getId(),
+    'estimated_value' => 150000.00,
+    'probability' => 75.0,
+    'expected_close_date' => '2024-12-31'
+];
+
+$opportunity = $crmService->createOpportunity($opportunityData);
+
+// Record communication
+$communicationData = [
+    'debtor_no' => 'CUST001',
+    'contact_id' => $contact->getId(),
+    'communication_type' => 'phone',
+    'direction' => 'outbound',
+    'subject' => 'Discussed Q4 upgrade opportunity',
+    'duration_minutes' => 30,
+    'follow_up_required' => true,
+    'follow_up_date' => '2024-10-15'
+];
+
+$communication = $crmService->recordCommunication($communicationData);
+```
+
+### Event Handling
+
+```php
+// Listen for CRM events
+$eventDispatcher->addListener(CRMCustomerCreatedEvent::class, function(CRMCustomerCreatedEvent $event) {
+    $customer = $event->getCustomer();
+    // Send welcome email, create EDI config, etc.
+});
+
+$eventDispatcher->addListener(CRMOpportunityStatusChangedEvent::class, function(CRMOpportunityStatusChangedEvent $event) {
+    if ($event->isWon()) {
+        // Trigger order creation workflow
+    }
+});
+```
+
+### Analytics Usage
+
+```php
+// Get customer analytics
+$analytics = $crmService->getCustomerAnalytics('CUST001');
+echo "Lifetime Value: $" . number_format($analytics['lifetime_value'], 2);
+echo "Payment Reliability: " . $analytics['payment_reliability'] . "%";
+
+// Get sales pipeline summary
+$pipeline = $crmService->getSalesPipelineSummary();
+echo "Total Pipeline Value: $" . number_format($pipeline['total_value'], 2);
+echo "Weighted Value: $" . number_format($pipeline['weighted_value'], 2);
+```
+
+## API Reference
+
+### CRMService Methods
+
+#### Customer Management
+- `createCRMCustomer(array $data): CRMCustomer`
+- `getCRMCustomer(string $debtorNo): CRMCustomer`
+- `updateCRMCustomer(string $debtorNo, array $data): CRMCustomer`
+- `deleteCRMCustomer(string $debtorNo): void`
+
+#### Contact Management
+- `createContact(array $data): CRMContact`
+- `getContact(int $contactId): CRMContact`
+- `getContactsByCustomer(string $debtorNo): CRMContact[]`
+- `updateContact(int $contactId, array $data): CRMContact`
+- `deleteContact(int $contactId): void`
+
+#### Opportunity Management
+- `createOpportunity(array $data): CRMOpportunity`
+- `getOpportunity(int $opportunityId): CRMOpportunity`
+- `getOpportunitiesByCustomer(string $debtorNo): CRMOpportunity[]`
+- `updateOpportunity(int $opportunityId, array $data): CRMOpportunity`
+- `deleteOpportunity(int $opportunityId): void`
+
+#### Communication Tracking
+- `recordCommunication(array $data): CRMCommunication`
+- `getCommunication(int $communicationId): CRMCommunication`
+- `getCommunicationsByCustomer(string $debtorNo): CRMCommunication[]`
+- `updateCommunication(int $communicationId, array $data): CRMCommunication`
+
+#### Analytics & Reporting
+- `getCustomerAnalytics(string $debtorNo): array`
+- `getSalesPipelineSummary(): array`
+- `getTerritoryPerformance(): array`
+- `getCommunicationAnalytics(): array`
+
+## Database Schema
+
+### crm_customers
+```sql
+CREATE TABLE crm_customers (
+    debtor_no VARCHAR(20) PRIMARY KEY,
+    customer_type_id INT,
+    customer_segment_id INT,
+    territory_id INT,
+    customer_since DATE,
+    website VARCHAR(255),
+    industry VARCHAR(100),
+    employee_count INT,
+    annual_revenue DECIMAL(15,2),
+    parent_company VARCHAR(100),
+    latitude DECIMAL(10,8),
+    longitude DECIMAL(11,8),
+    edi_enabled BOOLEAN DEFAULT FALSE,
+    marketing_opt_out BOOLEAN DEFAULT FALSE,
+    preferred_contact_method VARCHAR(20) DEFAULT 'email',
+    last_contact_date DATETIME,
+    next_followup_date DATETIME,
+    account_manager VARCHAR(100),
+    credit_rating VARCHAR(20) DEFAULT 'good',
+    payment_reliability DECIMAL(5,2) DEFAULT 100.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+### crm_contacts
+```sql
+CREATE TABLE crm_contacts (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    debtor_no VARCHAR(20),
+    contact_role_id INT,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    title VARCHAR(50),
+    department VARCHAR(50),
+    phone VARCHAR(20),
+    mobile VARCHAR(20),
+    email VARCHAR(100),
+    address TEXT,
+    notes TEXT,
+    is_primary BOOLEAN DEFAULT FALSE,
+    inactive BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (debtor_no) REFERENCES debtors_master(debtor_no)
+);
+```
+
+### crm_opportunities
+```sql
+CREATE TABLE crm_opportunities (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    opportunity_name VARCHAR(100) NOT NULL,
+    debtor_no VARCHAR(20),
+    contact_id INT,
+    sales_person VARCHAR(100),
+    opportunity_type VARCHAR(50),
+    status VARCHAR(20) DEFAULT 'prospecting',
+    estimated_value DECIMAL(15,2),
+    probability DECIMAL(5,2),
+    expected_close_date DATE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (debtor_no) REFERENCES debtors_master(debtor_no),
+    FOREIGN KEY (contact_id) REFERENCES crm_contacts(id)
+);
+```
+
+### crm_communications
+```sql
+CREATE TABLE crm_communications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    debtor_no VARCHAR(20),
+    contact_id INT,
+    communication_type VARCHAR(20) NOT NULL,
+    direction VARCHAR(10) DEFAULT 'outbound',
+    subject VARCHAR(255),
+    message TEXT,
+    email_from VARCHAR(100),
+    email_to VARCHAR(100),
+    phone_number VARCHAR(20),
+    duration_minutes INT,
+    status VARCHAR(20) DEFAULT 'completed',
+    scheduled_date DATETIME,
+    completed_date DATETIME,
+    assigned_to VARCHAR(100),
+    priority VARCHAR(10) DEFAULT 'medium',
+    follow_up_required BOOLEAN DEFAULT FALSE,
+    follow_up_date DATETIME,
+    notes TEXT,
+    email_message_id VARCHAR(255),
+    attachment_path VARCHAR(500),
+    created_by VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (debtor_no) REFERENCES debtors_master(debtor_no),
+    FOREIGN KEY (contact_id) REFERENCES crm_contacts(id)
+);
+```
+
+## Event Reference
+
+### Customer Events
+- `CRMCustomerCreatedEvent` - Fired when customer profile is created
+- `CRMCustomerUpdatedEvent` - Fired when customer profile is updated
+- `CRMCustomerDeletedEvent` - Fired when customer profile is deleted
+
+### Contact Events
+- `CRMContactCreatedEvent` - Fired when contact is created
+- `CRMContactUpdatedEvent` - Fired when contact is updated
+- `CRMContactDeletedEvent` - Fired when contact is deleted
+
+### Opportunity Events
+- `CRMOpportunityCreatedEvent` - Fired when opportunity is created
+- `CRMOpportunityUpdatedEvent` - Fired when opportunity is updated
+- `CRMOpportunityDeletedEvent` - Fired when opportunity is deleted
+- `CRMOpportunityStatusChangedEvent` - Fired when opportunity status changes
+
+### Communication Events
+- `CRMCommunicationCreatedEvent` - Fired when communication is recorded
+- `CRMCommunicationUpdatedEvent` - Fired when communication is updated
+- `CRMCommunicationCompletedEvent` - Fired when communication is completed
+- `CRMFollowUpRequiredEvent` - Fired when follow-up is required
+
+## Exception Reference
+
+### Core Exceptions
+- `CRMException` - Base CRM exception
+- `CRMDatabaseException` - Database operation errors
+- `CRMPermissionException` - Permission-related errors
+- `CRMConfigurationException` - Configuration errors
+
+### Entity Exceptions
+- `CRMCustomerNotFoundException` - Customer not found
+- `CRMCustomerAlreadyExistsException` - Customer already exists
+- `CRMCustomerValidationException` - Customer validation errors
+- `CRMContactNotFoundException` - Contact not found
+- `CRMContactValidationException` - Contact validation errors
+- `CRMOpportunityNotFoundException` - Opportunity not found
+- `CRMOpportunityValidationException` - Opportunity validation errors
+- `CRMCommunicationNotFoundException` - Communication not found
+- `CRMCommunicationValidationException` - Communication validation errors
+
+## Testing
+
+### Unit Tests
 ```bash
 # Run CRM module tests
 cd /path/to/frontaccounting
-./vendor/bin/phpunit modules/CRM/tests/CRMModuleTest.php
+./vendor/bin/phpunit modules/CRM/tests/
 ```
 
-#### Manual Testing
-1. **Module Loading**
-   - Verify module appears in Admin → Modules
-   - Check no PHP errors on module activation
-
-2. **Database Tables**
-   - Verify CRM tables created:
-     - crm_customer_types
-     - crm_customer_segments
-     - crm_territories
-     - crm_opportunities
-     - crm_edi_config
-     - crm_customer_analytics
-
-3. **UI Components**
-   - Access CRM Dashboard from Sales menu
-   - Test customer type management
-   - Test territory management
-   - Verify enhanced customer page loads
-
-#### Integration Testing
-- Create test customers with CRM fields
-- Test customer type assignment
-- Verify territory assignment works
-- Check analytics data generation
+### Integration Tests
+- Test service integration with FA core services
+- Verify event dispatching and handling
+- Validate database operations and constraints
+- Test exception handling and error scenarios
 
 ## WebERP Compatibility
 
-This CRM module implements WebERP's advanced CRM features:
+This CRM module implements WebERP's advanced CRM features with modern PHP architecture:
 
 - **Customer Types**: Categorization system matching WebERP
 - **Contact Management**: Multi-contact system with roles
@@ -247,59 +451,59 @@ This CRM module implements WebERP's advanced CRM features:
 - **Geographic Features**: Location-based customer mapping
 - **Advanced Analytics**: Customer value and performance analysis
 
-## Migration from Basic FA
+## Migration & Integration
 
-### Existing Customers
-- Existing customers are automatically available in CRM
-- CRM fields are added with NULL defaults
-- No data loss during migration
+### Existing FA Customers
+- CRM fields are additive - no existing data affected
+- Gradual adoption of CRM features possible
+- Backward compatibility maintained
 
-### Enhanced Features
-- Gradually adopt CRM features as needed
-- Existing workflows continue to work
-- CRM features are additive, not replacing
+### Module Integration
+- Event-driven communication with other modules
+- Shared services for common functionality
+- Database relationships maintained
+- Permission system integration
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Module Not Loading**
-   - Check module registration in FA module system
-   - Verify database permissions
-   - Check PHP error logs
+1. **Service Not Found**
+   - Verify DI container configuration
+   - Check service registration in module bootstrap
 
 2. **Database Errors**
-   - Ensure CRM tables were created during installation
-   - Check database user permissions
-   - Verify table structure matches expectations
+   - Ensure CRM tables exist and have correct structure
+   - Check database permissions for CRM operations
 
-3. **Permission Errors**
-   - Verify user has SA_CUSTOMER permission
-   - Check CRM-specific permissions are assigned
+3. **Event Not Firing**
+   - Verify event dispatcher is properly configured
+   - Check event listener registration
 
-### Support
-
-For support and bug reports:
-- Check FA community forums
-- Review module documentation
-- Contact FA development team
+4. **Permission Errors**
+   - Ensure user has required CRM permissions
+   - Check role-based access control configuration
 
 ## Future Enhancements
 
-- Email marketing integration
-- Social media integration
-- Mobile CRM app
-- AI-powered customer insights
+- Email marketing campaign management
+- Social media integration and monitoring
+- Mobile CRM application
+- AI-powered customer insights and recommendations
 - Advanced workflow automation
-- Integration with popular CRM platforms (SuiteCRM, HubSpot, etc.)
+- Integration with popular CRM platforms
+- Real-time communication features
+- Advanced reporting and dashboard
 
 ## Version History
 
-- **1.0.0**: Initial release with core CRM features
-  - Customer types and segments
-  - Territory management
-  - Enhanced customer profiles
-  - Contact management
-  - Sales opportunities
-  - Basic analytics
-  - EDI configuration
+- **1.0.0**: Complete CRM module with service-oriented architecture
+  - Service classes with dependency injection
+  - Entity models with type safety
+  - Event-driven architecture
+  - Custom exception hierarchy
+  - Database abstraction layer
+  - Comprehensive CRUD operations
+  - Analytics and reporting
+  - Integration with FA core services
+  - Full documentation and testing

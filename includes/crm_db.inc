@@ -1404,6 +1404,471 @@ function get_meeting_room($id)
 
 function add_meeting($meeting_data)
 {
+	$sql = "INSERT INTO " . TB_PREF . "crm_meetings
+		(meeting_name, meeting_type, description, start_date, end_date, duration_minutes, time_zone,
+		location_type, room_id, custom_location, phone_number, conference_url, meeting_url,
+		dial_in_number, access_code, host_pin, debtor_no, opportunity_id, project_id, quote_id,
+		campaign_id, agenda, preparation_notes, status, priority, assigned_to, created_by,
+		is_recurring, recurrence_id, reminder_minutes_before, ics_uid, external_id)
+		VALUES (" . db_escape($meeting_data['meeting_name']) . ", " . db_escape($meeting_data['meeting_type']) . ",
+		" . db_escape($meeting_data['description']) . ", " . db_escape($meeting_data['start_date']) . ",
+		" . db_escape($meeting_data['end_date']) . ", " . (int)$meeting_data['duration_minutes'] . ",
+		" . db_escape($meeting_data['time_zone']) . ", " . db_escape($meeting_data['location_type']) . ",
+		" . db_escape($meeting_data['room_id']) . ", " . db_escape($meeting_data['custom_location']) . ",
+		" . db_escape($meeting_data['phone_number']) . ", " . db_escape($meeting_data['conference_url']) . ",
+		" . db_escape($meeting_data['meeting_url']) . ", " . db_escape($meeting_data['dial_in_number']) . ",
+		" . db_escape($meeting_data['access_code']) . ", " . db_escape($meeting_data['host_pin']) . ",
+		" . db_escape($meeting_data['debtor_no']) . ", " . db_escape($meeting_data['opportunity_id']) . ",
+		" . db_escape($meeting_data['project_id']) . ", " . db_escape($meeting_data['quote_id']) . ",
+		" . db_escape($meeting_data['campaign_id']) . ", " . db_escape($meeting_data['agenda']) . ",
+		" . db_escape($meeting_data['preparation_notes']) . ", " . db_escape($meeting_data['status']) . ",
+		" . db_escape($meeting_data['priority']) . ", " . db_escape($meeting_data['assigned_to']) . ",
+		" . db_escape($meeting_data['created_by']) . ", " . (int)$meeting_data['is_recurring'] . ",
+		" . db_escape($meeting_data['recurrence_id']) . ", " . (int)$meeting_data['reminder_minutes_before'] . ",
+		" . db_escape($meeting_data['ics_uid']) . ", " . db_escape($meeting_data['external_id']) . ")";
+
+	db_query($sql, "Could not add meeting");
+	return db_insert_id();
+}
+
+function update_meeting($id, $meeting_data)
+{
+	$sql = "UPDATE " . TB_PREF . "crm_meetings SET
+		meeting_name = " . db_escape($meeting_data['meeting_name']) . ",
+		meeting_type = " . db_escape($meeting_data['meeting_type']) . ",
+		description = " . db_escape($meeting_data['description']) . ",
+		start_date = " . db_escape($meeting_data['start_date']) . ",
+		end_date = " . db_escape($meeting_data['end_date']) . ",
+		duration_minutes = " . (int)$meeting_data['duration_minutes'] . ",
+		time_zone = " . db_escape($meeting_data['time_zone']) . ",
+		location_type = " . db_escape($meeting_data['location_type']) . ",
+		room_id = " . db_escape($meeting_data['room_id']) . ",
+		custom_location = " . db_escape($meeting_data['custom_location']) . ",
+		phone_number = " . db_escape($meeting_data['phone_number']) . ",
+		conference_url = " . db_escape($meeting_data['conference_url']) . ",
+		meeting_url = " . db_escape($meeting_data['meeting_url']) . ",
+		dial_in_number = " . db_escape($meeting_data['dial_in_number']) . ",
+		access_code = " . db_escape($meeting_data['access_code']) . ",
+		host_pin = " . db_escape($meeting_data['host_pin']) . ",
+		debtor_no = " . db_escape($meeting_data['debtor_no']) . ",
+		opportunity_id = " . db_escape($meeting_data['opportunity_id']) . ",
+		project_id = " . db_escape($meeting_data['project_id']) . ",
+		quote_id = " . db_escape($meeting_data['quote_id']) . ",
+		campaign_id = " . db_escape($meeting_data['campaign_id']) . ",
+		agenda = " . db_escape($meeting_data['agenda']) . ",
+		preparation_notes = " . db_escape($meeting_data['preparation_notes']) . ",
+		meeting_outcome = " . db_escape($meeting_data['meeting_outcome']) . ",
+		follow_up_actions = " . db_escape($meeting_data['follow_up_actions']) . ",
+		status = " . db_escape($meeting_data['status']) . ",
+		priority = " . db_escape($meeting_data['priority']) . ",
+		assigned_to = " . db_escape($meeting_data['assigned_to']) . ",
+		is_recurring = " . (int)$meeting_data['is_recurring'] . ",
+		recurrence_id = " . db_escape($meeting_data['recurrence_id']) . ",
+		reminder_minutes_before = " . (int)$meeting_data['reminder_minutes_before'] . ",
+		ics_uid = " . db_escape($meeting_data['ics_uid']) . ",
+		external_id = " . db_escape($meeting_data['external_id']) . "
+	WHERE id = " . (int)$id;
+
+	db_query($sql, "Could not update meeting");
+}
+
+function delete_meeting($id)
+{
+	$sql = "DELETE FROM " . TB_PREF . "crm_meetings WHERE id = " . (int)$id;
+	db_query($sql, "Could not delete meeting");
+}
+
+function get_meetings($filters = array(), $limit = null, $offset = 0)
+{
+	$sql = "SELECT m.*, d.name as customer_name, r.room_name, u.user_id as assigned_to_name,
+		o.opportunity_name, c.campaign_name
+		FROM " . TB_PREF . "crm_meetings m
+		LEFT JOIN " . TB_PREF . "debtors_master d ON m.debtor_no = d.debtor_no
+		LEFT JOIN " . TB_PREF . "crm_meeting_rooms r ON m.room_id = r.id
+		LEFT JOIN " . TB_PREF . "users u ON m.assigned_to = u.id
+		LEFT JOIN " . TB_PREF . "crm_opportunities o ON m.opportunity_id = o.id
+		LEFT JOIN " . TB_PREF . "crm_campaigns c ON m.campaign_id = c.id
+		WHERE 1=1";
+
+	// Apply filters
+	if (!empty($filters['debtor_no'])) {
+		$sql .= " AND m.debtor_no = " . db_escape($filters['debtor_no']);
+	}
+	if (!empty($filters['assigned_to'])) {
+		$sql .= " AND m.assigned_to = " . db_escape($filters['assigned_to']);
+	}
+	if (!empty($filters['status'])) {
+		$sql .= " AND m.status = " . db_escape($filters['status']);
+	}
+	if (!empty($filters['start_date'])) {
+		$sql .= " AND m.start_date >= " . db_escape($filters['start_date']);
+	}
+	if (!empty($filters['end_date'])) {
+		$sql .= " AND m.end_date <= " . db_escape($filters['end_date']);
+	}
+	if (!empty($filters['opportunity_id'])) {
+		$sql .= " AND m.opportunity_id = " . (int)$filters['opportunity_id'];
+	}
+
+	$sql .= " ORDER BY m.start_date ASC";
+
+	if ($limit) {
+		$sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
+	}
+
+	$result = db_query($sql, "Could not get meetings");
+	return $result;
+}
+
+function get_meeting($id)
+{
+	$sql = "SELECT m.*, d.name as customer_name, r.room_name, u.user_id as assigned_to_name,
+		o.opportunity_name, c.campaign_name
+		FROM " . TB_PREF . "crm_meetings m
+		LEFT JOIN " . TB_PREF . "debtors_master d ON m.debtor_no = d.debtor_no
+		LEFT JOIN " . TB_PREF . "crm_meeting_rooms r ON m.room_id = r.id
+		LEFT JOIN " . TB_PREF . "users u ON m.assigned_to = u.id
+		LEFT JOIN " . TB_PREF . "crm_opportunities o ON m.opportunity_id = o.id
+		LEFT JOIN " . TB_PREF . "crm_campaigns c ON m.campaign_id = c.id
+		WHERE m.id = " . (int)$id;
+
+	$result = db_query($sql, "Could not get meeting");
+	return db_fetch($result);
+}
+
+function get_upcoming_meetings($days_ahead = 7, $user_id = null)
+{
+	$end_date = date('Y-m-d H:i:s', strtotime("+{$days_ahead} days"));
+
+	$sql = "SELECT m.*, d.name as customer_name, r.room_name
+		FROM " . TB_PREF . "crm_meetings m
+		LEFT JOIN " . TB_PREF . "debtors_master d ON m.debtor_no = d.debtor_no
+		LEFT JOIN " . TB_PREF . "crm_meeting_rooms r ON m.room_id = r.id
+		WHERE m.start_date <= " . db_escape($end_date) . "
+		AND m.status IN ('planned', 'confirmed')
+		AND m.start_date >= NOW()";
+
+	if ($user_id) {
+		$sql .= " AND (m.assigned_to = " . db_escape($user_id) . "
+			OR m.id IN (
+				SELECT meeting_id FROM " . TB_PREF . "crm_meeting_attendees
+				WHERE attendee_type = 'employee' AND employee_id = " . (int)$user_id . "
+			))";
+	}
+
+	$sql .= " ORDER BY m.start_date ASC";
+
+	$result = db_query($sql, "Could not get upcoming meetings");
+	return $result;
+}
+
+// ============================================================================
+// MEETING ATTENDEES FUNCTIONS
+// ============================================================================
+
+function add_meeting_attendee($meeting_id, $attendee_data)
+{
+	$sql = "INSERT INTO " . TB_PREF . "crm_meeting_attendees
+		(meeting_id, attendee_type, employee_id, contact_id, external_name, external_email,
+		external_phone, attendee_role, response_status, notes)
+		VALUES (" . (int)$meeting_id . ", " . db_escape($attendee_data['attendee_type']) . ",
+		" . db_escape($attendee_data['employee_id']) . ", " . db_escape($attendee_data['contact_id']) . ",
+		" . db_escape($attendee_data['external_name']) . ", " . db_escape($attendee_data['external_email']) . ",
+		" . db_escape($attendee_data['external_phone']) . ", " . db_escape($attendee_data['attendee_role']) . ",
+		" . db_escape($attendee_data['response_status']) . ", " . db_escape($attendee_data['notes']) . ")";
+
+	db_query($sql, "Could not add meeting attendee");
+	return db_insert_id();
+}
+
+function update_meeting_attendee($id, $attendee_data)
+{
+	$sql = "UPDATE " . TB_PREF . "crm_meeting_attendees SET
+		attendee_type = " . db_escape($attendee_data['attendee_type']) . ",
+		employee_id = " . db_escape($attendee_data['employee_id']) . ",
+		contact_id = " . db_escape($attendee_data['contact_id']) . ",
+		external_name = " . db_escape($attendee_data['external_name']) . ",
+		external_email = " . db_escape($attendee_data['external_email']) . ",
+		external_phone = " . db_escape($attendee_data['external_phone']) . ",
+		attendee_role = " . db_escape($attendee_data['attendee_role']) . ",
+		response_status = " . db_escape($attendee_data['response_status']) . ",
+		response_date = " . db_escape($attendee_data['response_date']) . ",
+		notes = " . db_escape($attendee_data['notes']) . "
+	WHERE id = " . (int)$id;
+
+	db_query($sql, "Could not update meeting attendee");
+}
+
+function delete_meeting_attendee($id)
+{
+	$sql = "DELETE FROM " . TB_PREF . "crm_meeting_attendees WHERE id = " . (int)$id;
+	db_query($sql, "Could not delete meeting attendee");
+}
+
+function get_meeting_attendees($meeting_id)
+{
+	$sql = "SELECT ma.*, c.first_name, c.last_name, c.email as contact_email,
+		u.user_id as employee_name, u.email as employee_email
+		FROM " . TB_PREF . "crm_meeting_attendees ma
+		LEFT JOIN " . TB_PREF . "crm_contacts c ON ma.contact_id = c.id
+		LEFT JOIN " . TB_PREF . "users u ON ma.employee_id = u.id
+		WHERE ma.meeting_id = " . (int)$meeting_id . "
+		ORDER BY ma.attendee_role, ma.attendee_type";
+
+	$result = db_query($sql, "Could not get meeting attendees");
+	return $result;
+}
+
+function update_attendee_response($attendee_id, $response_status)
+{
+	$sql = "UPDATE " . TB_PREF . "crm_meeting_attendees SET
+		response_status = " . db_escape($response_status) . ",
+		response_date = NOW()
+	WHERE id = " . (int)$attendee_id;
+
+	db_query($sql, "Could not update attendee response");
+}
+
+// ============================================================================
+// ICS AND CALENDAR FUNCTIONS
+// ============================================================================
+
+function generate_ics_content($meeting)
+{
+	$ics = "BEGIN:VCALENDAR\r\n";
+	$ics .= "VERSION:2.0\r\n";
+	$ics .= "PRODID:-//FrontAccounting CRM//EN\r\n";
+	$ics .= "BEGIN:VEVENT\r\n";
+	$ics .= "UID:" . ($meeting['ics_uid'] ?: uniqid()) . "\r\n";
+	$ics .= "DTSTART:" . gmdate('Ymd\THis\Z', strtotime($meeting['start_date'])) . "\r\n";
+	$ics .= "DTEND:" . gmdate('Ymd\THis\Z', strtotime($meeting['end_date'])) . "\r\n";
+	$ics .= "SUMMARY:" . $meeting['meeting_name'] . "\r\n";
+
+	if ($meeting['description']) {
+		$ics .= "DESCRIPTION:" . str_replace(array("\r\n", "\n"), "\\n", $meeting['description']) . "\r\n";
+	}
+
+	if ($meeting['location_type'] == 'physical' && $meeting['room_id']) {
+		$room = get_meeting_room($meeting['room_id']);
+		$ics .= "LOCATION:" . $room['room_name'];
+		if ($room['location']) {
+			$ics .= " - " . $room['location'];
+		}
+		$ics .= "\r\n";
+	} elseif ($meeting['custom_location']) {
+		$ics .= "LOCATION:" . $meeting['custom_location'] . "\r\n";
+	}
+
+	// Add organizer
+	if ($meeting['assigned_to']) {
+		$user = get_user($meeting['assigned_to']);
+		if ($user && $user['email']) {
+			$ics .= "ORGANIZER;CN=" . $user['user_id'] . ":mailto:" . $user['email'] . "\r\n";
+		}
+	}
+
+	// Add attendees
+	$attendees = get_meeting_attendees($meeting['id']);
+	while ($attendee = db_fetch($attendees)) {
+		$attendee_email = '';
+		$attendee_name = '';
+
+		if ($attendee['attendee_type'] == 'employee' && $attendee['employee_email']) {
+			$attendee_email = $attendee['employee_email'];
+			$attendee_name = $attendee['employee_name'];
+		} elseif ($attendee['attendee_type'] == 'contact' && $attendee['contact_email']) {
+			$attendee_email = $attendee['contact_email'];
+			$attendee_name = $attendee['first_name'] . ' ' . $attendee['last_name'];
+		} elseif ($attendee['attendee_type'] == 'external' && $attendee['external_email']) {
+			$attendee_email = $attendee['external_email'];
+			$attendee_name = $attendee['external_name'];
+		}
+
+		if ($attendee_email) {
+			$ics .= "ATTENDEE;CN=" . $attendee_name . ";RSVP=TRUE:mailto:" . $attendee_email . "\r\n";
+		}
+	}
+
+	$ics .= "STATUS:CONFIRMED\r\n";
+	$ics .= "END:VEVENT\r\n";
+	$ics .= "END:VCALENDAR\r\n";
+
+	return $ics;
+}
+
+function send_meeting_invite($meeting_id, $to_email, $subject = null, $message = null)
+{
+	$meeting = get_meeting($meeting_id);
+	if (!$meeting) {
+		return false;
+	}
+
+	$ics_content = generate_ics_content($meeting);
+
+	// Create email with ICS attachment
+	$boundary = md5(uniqid());
+
+	$headers = array(
+		'MIME-Version: 1.0',
+		'Content-Type: multipart/mixed; boundary="' . $boundary . '"',
+		'From: ' . $_SESSION['wa_current_user']->email,
+		'Reply-To: ' . $_SESSION['wa_current_user']->email
+	);
+
+	$email_subject = $subject ?: "Meeting Invitation: " . $meeting['meeting_name'];
+	$email_message = $message ?: "You are invited to the following meeting:\n\n" . $meeting['meeting_name'];
+
+	$body = "--" . $boundary . "\r\n";
+	$body .= "Content-Type: text/plain; charset=UTF-8\r\n\r\n";
+	$body .= $email_message . "\r\n\r\n";
+	$body .= "--" . $boundary . "\r\n";
+	$body .= "Content-Type: text/calendar; charset=UTF-8; method=REQUEST\r\n";
+	$body .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
+	$body .= $ics_content . "\r\n";
+	$body .= "--" . $boundary . "--";
+
+	return mail($to_email, $email_subject, $body, implode("\r\n", $headers));
+}
+
+function parse_ics_file($ics_content)
+{
+	$events = array();
+	$lines = explode("\r\n", $ics_content);
+	$current_event = null;
+	$in_event = false;
+
+	foreach ($lines as $line) {
+		$line = trim($line);
+
+		if ($line == 'BEGIN:VEVENT') {
+			$current_event = array();
+			$in_event = true;
+		} elseif ($line == 'END:VEVENT') {
+			if ($current_event) {
+				$events[] = $current_event;
+			}
+			$current_event = null;
+			$in_event = false;
+		} elseif ($in_event && strpos($line, ':') !== false) {
+			list($key, $value) = explode(':', $line, 2);
+
+			// Handle parameters in key
+			if (strpos($key, ';') !== false) {
+				list($key, $params) = explode(';', $key, 2);
+			}
+
+			$current_event[strtolower($key)] = $value;
+		}
+	}
+
+	return $events;
+}
+
+function import_ics_meeting($ics_event, $account_id = null)
+{
+	$meeting_data = array(
+		'meeting_name' => $ics_event['summary'] ?? 'Imported Meeting',
+		'meeting_type' => 'meeting',
+		'description' => $ics_event['description'] ?? '',
+		'start_date' => date('Y-m-d H:i:s', strtotime($ics_event['dtstart'])),
+		'end_date' => date('Y-m-d H:i:s', strtotime($ics_event['dtend'])),
+		'location_type' => $ics_event['location'] ? 'physical' : 'virtual',
+		'custom_location' => $ics_event['location'] ?? '',
+		'status' => 'confirmed',
+		'priority' => 'normal',
+		'ics_uid' => $ics_event['uid'] ?? uniqid(),
+		'external_id' => $ics_event['uid'] ?? null,
+		'created_by' => $_SESSION['wa_current_user']->loginname
+	);
+
+	// Calculate duration
+	$start = strtotime($meeting_data['start_date']);
+	$end = strtotime($meeting_data['end_date']);
+	$meeting_data['duration_minutes'] = round(($end - $start) / 60);
+
+	$meeting_id = add_meeting($meeting_data);
+
+	// Add organizer as attendee if available
+	if (isset($ics_event['organizer'])) {
+		// Parse organizer email from ORGANIZER field
+		if (preg_match('/mailto:(.+)/i', $ics_event['organizer'], $matches)) {
+			$organizer_email = $matches[1];
+			add_meeting_attendee($meeting_id, array(
+				'attendee_type' => 'external',
+				'external_email' => $organizer_email,
+				'attendee_role' => 'organizer',
+				'response_status' => 'accepted'
+			));
+		}
+	}
+
+	return $meeting_id;
+}
+
+// ============================================================================
+// MEETING ROOMS FUNCTIONS
+// ============================================================================
+
+function add_meeting_room($room_data)
+{
+	$sql = "INSERT INTO " . TB_PREF . "crm_meeting_rooms
+		(room_name, room_type, location, capacity, equipment, phone_number, conference_url, active)
+		VALUES (" . db_escape($room_data['room_name']) . ", " . db_escape($room_data['room_type']) . ",
+		" . db_escape($room_data['location']) . ", " . (int)$room_data['capacity'] . ",
+		" . db_escape($room_data['equipment']) . ", " . db_escape($room_data['phone_number']) . ",
+		" . db_escape($room_data['conference_url']) . ", " . (int)$room_data['active'] . ")";
+
+	db_query($sql, "Could not add meeting room");
+	return db_insert_id();
+}
+
+function update_meeting_room($id, $room_data)
+{
+	$sql = "UPDATE " . TB_PREF . "crm_meeting_rooms SET
+		room_name = " . db_escape($room_data['room_name']) . ",
+		room_type = " . db_escape($room_data['room_type']) . ",
+		location = " . db_escape($room_data['location']) . ",
+		capacity = " . (int)$room_data['capacity'] . ",
+		equipment = " . db_escape($room_data['equipment']) . ",
+		phone_number = " . db_escape($room_data['phone_number']) . ",
+		conference_url = " . db_escape($room_data['conference_url']) . ",
+		active = " . (int)$room_data['active'] . "
+	WHERE id = " . (int)$id;
+
+	db_query($sql, "Could not update meeting room");
+}
+
+function delete_meeting_room($id)
+{
+	$sql = "DELETE FROM " . TB_PREF . "crm_meeting_rooms WHERE id = " . (int)$id;
+	db_query($sql, "Could not delete meeting room");
+}
+
+function get_meeting_rooms($active_only = true)
+{
+	$sql = "SELECT * FROM " . TB_PREF . "crm_meeting_rooms";
+	if ($active_only) {
+		$sql .= " WHERE active = 1";
+	}
+	$sql .= " ORDER BY room_name";
+
+	$result = db_query($sql, "Could not get meeting rooms");
+	return $result;
+}
+
+function get_meeting_room($id)
+{
+	$sql = "SELECT * FROM " . TB_PREF . "crm_meeting_rooms WHERE id = " . (int)$id;
+	$result = db_query($sql, "Could not get meeting room");
+	return db_fetch($result);
+}
+
+// ============================================================================
+// MEETINGS FUNCTIONS
+// ============================================================================
+
+function add_meeting($meeting_data)
+{
 	$sql = "INSERT INTO " . TB_PREF . "crm_meetings (
 		meeting_name, meeting_type, description, start_date, end_date, duration_minutes, time_zone,
 		location_type, room_id, custom_location, phone_number, conference_url, meeting_url,
