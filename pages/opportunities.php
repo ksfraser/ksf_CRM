@@ -4,8 +4,8 @@ $path_to_root = "../../..";
 
 include_once($path_to_root . "/includes/session.inc");
 include_once($path_to_root . "/includes/ui.inc");
-include_once($path_to_root . "/modules/CRM/includes/crm_db.inc");
-include_once($path_to_root . "/modules/CRM/includes/crm_ui.inc");
+include_once($path_to_root . "/modules/FA_CRM/includes/crm_db.inc");
+include_once($path_to_root . "/modules/FA_CRM/includes/crm_ui.inc");
 
 page(_($help_context = "CRM Opportunities"));
 

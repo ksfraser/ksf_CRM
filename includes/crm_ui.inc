@@ -6,7 +6,7 @@
  */
 
 // Include CRM database functions
-include_once($path_to_root . "/modules/CRM/includes/crm_db.inc");
+include_once($path_to_root . "/modules/FA_CRM/includes/crm_db.inc");
 
 /**
  * Display CRM customer summary
@@ -1023,4 +1023,226 @@ function opportunity_list_row($label, $name, $value = null, $customer_id = null)
 	echo '<tr><td class="label">' . $label . '</td><td>';
 	echo array_selector($name, $value, $options);
 	echo '</td></tr>';
+}
+// ============================================================================
+// ADDITIONAL UI HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * CRM Navigation Menu
+ */
+function crm_navigation_menu() {
+    $current_section = isset($_GET['section']) ? $_GET['section'] : 'dashboard';
+    
+    $menu_items = array(
+        'dashboard' => array('title' => 'Dashboard', 'url' => '?application=fa_crm&section=dashboard'),
+        'customers' => array('title' => 'Customers', 'url' => '?application=fa_crm&section=customers'),
+        'opportunities' => array('title' => 'Opportunities', 'url' => '?application=fa_crm&section=opportunities'),
+        'communications' => array('title' => 'Communications', 'url' => '?application=fa_crm&section=communications'),
+        'calendar' => array('title' => 'Calendar', 'url' => '?application=fa_crm&section=calendar'),
+        'reports' => array('title' => 'Reports', 'url' => '?application=fa_crm&section=reports'),
+        'settings' => array('title' => 'Settings', 'url' => '?application=fa_crm&section=settings'),
+    );
+    
+    echo '<table class="crm_menu">';
+    echo '<tr>';
+    foreach ($menu_items as $section => $item) {
+        $class = ($current_section === $section) ? 'class="current"' : '';
+        echo '<td ' . $class . '>';
+        echo '<a href="' . $item['url'] . '">' . _($item['title']) . '</a>';
+        echo '</td>';
+    }
+    echo '</tr>';
+    echo '</table>';
+}
+
+/**
+ * Customer dropdown selector
+ */
+function sel_customer($selected = '', $submit_on_change = false) {
+    $sql = "SELECT debtor_no, name FROM " . TB_PREF . "debtors_master WHERE inactive = 0 ORDER BY name";
+    $result = db_query($sql, "Could not get customers");
+    
+    $options = array('' => '');
+    while ($row = db_fetch_assoc($result)) {
+        $options[$row['debtor_no']] = $row['name'];
+    }
+    
+    return selector($$selected, $options, $submit_on_change);
+}
+
+/**
+ * Customer Type dropdown
+ */
+function sel_customer_type($selected = '') {
+    $types = get_crm_customer_types();
+    $options = array('' => '');
+    while ($row = db_fetch_assoc($types)) {
+        $options[$row['id']] = $row['name'];
+    }
+    
+    echo '<select name="customer_type_id">';
+    foreach ($options as $value => $text) {
+        $sel = ($value == $selected) ? 'selected' : '';
+        echo '<option value="' . $value . '" ' . $sel . '>' . $text . '</option>';
+    }
+    echo '</select>';
+}
+
+/**
+ * Territory dropdown
+ */
+function sel_territory($selected = '') {
+    $territories = get_crm_territories();
+    $options = array('' => '');
+    while ($row = db_fetch_assoc($territories)) {
+        $options[$row['id']] = $row['name'];
+    }
+    
+    echo '<select name="territory_id">';
+    foreach ($options as $value => $text) {
+        $sel = ($value == $selected) ? 'selected' : '';
+        echo '<option value="' . $value . '" ' . $sel . '>' . $text . '</option>';
+    }
+    echo '</select>';
+}
+
+/**
+ * Credit Rating dropdown
+ */
+function sel_credit_rating($selected = 'good') {
+    $ratings = array('excellent' => 'Excellent', 'good' => 'Good', 'fair' => 'Fair', 'poor' => 'Poor');
+    
+    echo '<select name="credit_rating">';
+    foreach ($ratings as $value => $text) {
+        $sel = ($value == $selected) ? 'selected' : '';
+        echo '<option value="' . $value . '" ' . $sel . '>' . $text . '</option>';
+    }
+    echo '</select>';
+}
+
+/**
+ * Contact Method dropdown
+ */
+function sel_contact_method($selected = 'email') {
+    $methods = array('email' => 'Email', 'phone' => 'Phone', 'mobile' => 'Mobile', 'fax' => 'Fax', 'mail' => 'Mail');
+    
+    echo '<select name="preferred_contact_method">';
+    foreach ($methods as $value => $text) {
+        $sel = ($value == $selected) ? 'selected' : '';
+        echo '<option value="' . $value . '" ' . $sel . '>' . $text . '</option>';
+    }
+    echo '</select>';
+}
+
+/**
+ * Opportunity Type dropdown
+ */
+function sel_opportunity_type($selected = '') {
+    $types = array('' => '', 'new_business' => 'New Business', 'existing_business' => 'Existing Business', 'renewal' => 'Renewal', 'expansion' => 'Expansion');
+    
+    echo '<select name="opportunity_type">';
+    foreach ($types as $value => $text) {
+        $sel = ($value == $selected) ? 'selected' : '';
+        echo '<option value="' . $value . '" ' . $sel . '>' . $text . '</option>';
+    }
+    echo '</select>';
+}
+
+/**
+ * Stage dropdown
+ */
+function sel_stage($selected = 'qualification') {
+    $stages = array(
+        'qualification' => 'Qualification',
+        'discovery' => 'Discovery',
+        'proposal' => 'Proposal',
+        'negotiation' => 'Negotiation',
+        'closed_won' => 'Closed Won',
+        'closed_lost' => 'Closed Lost'
+    );
+    
+    echo '<select name="stage">';
+    foreach ($stages as $value => $text) {
+        $sel = ($value == $selected) ? 'selected' : '';
+        echo '<option value="' . $value . '" ' . $sel . '>' . $text . '</option>';
+    }
+    echo '</select>';
+}
+
+/**
+ * Communication Type dropdown
+ */
+function sel_communication_type($selected = '') {
+    $types = array('' => '', 'phone' => 'Phone', 'email' => 'Email', 'meeting' => 'Meeting', 'note' => 'Note');
+    
+    echo '<select name="communication_type">';
+    foreach ($types as $value => $text) {
+        $sel = ($value == $selected) ? 'selected' : '';
+        echo '<option value="' . $value . '" ' . $sel . '>' . $text . '</option>';
+    }
+    echo '</select>';
+}
+
+/**
+ * Direction dropdown
+ */
+function sel_direction($selected = 'outbound') {
+    $directions = array('inbound' => 'Inbound', 'outbound' => 'Outbound');
+    
+    echo '<select name="direction">';
+    foreach ($directions as $value => $text) {
+        $sel = ($value == $selected) ? 'selected' : '';
+        echo '<option value="' . $value . '" ' . $sel . '>' . $text . '</option>';
+    }
+    echo '</select>';
+}
+
+/**
+ * Text input helper
+ */
+function text_input($name, $value = '', $maxlength = 30) {
+    echo '<input type="text" name="' . $name . '" value="' . htmlspecialchars($value) . '" maxlength="' . $maxlength . '" size="' . min($maxlength, 40) . '">';
+}
+
+/**
+ * Amount input helper
+ */
+function amount_input($amount, $name) {
+    echo '<input type="text" name="' . $name . '" value="' . number_format($amount ?? 0, 2) . '" size="15">';
+}
+
+/**
+ * Date input helper
+ */
+function date_input($name, $value = '') {
+    $value = $value ? $value : date('Y-m-d');
+    echo '<input type="date" name="' . $name . '" value="' . $value . '">';
+}
+
+/**
+ * Textarea helper
+ */
+function textarea($name, $value = '', $cols = 50, $rows = 5) {
+    echo '<textarea name="' . $name . '" cols="' . $cols . '" rows="' . $rows . '">' . htmlspecialchars($value) . '</textarea>';
+}
+
+/**
+ * Checkbox input helper
+ */
+function check_input($name, $checked = false) {
+    $sel = $checked ? 'checked' : '';
+    echo '<input type="checkbox" name="' . $name . '" value="1" ' . $sel . '>';
+}
+
+/**
+ * Selector helper using FA's selector function
+ */
+function selector($selected, $options, $submit_on_change = false) {
+    echo '<select name="selector" ' . ($submit_on_change ? 'onchange="this.form.submit()"' : '') . '>';
+    foreach ($options as $value => $text) {
+        $sel = ($value == $selected) ? 'selected' : '';
+        echo '<option value="' . $value . '" ' . $sel . '>' . $text . '</option>';
+    }
+    echo '</select>';
 }
