@@ -22,6 +22,13 @@ $module_category = 'Sales';
 function fa_crm_install() {
     global $db;
 
+    @include_once __DIR__ . '/vendor-src/Ksfraser/Common/ComposerDependencyManager.php';
+    if (class_exists('Ksfraser\Common\ComposerDependencyManager')) {
+        $composerMgr = new \Ksfraser\Common\ComposerDependencyManager(__DIR__);
+        $composerMgr->ensureDependencies();
+        @include_once $composerMgr->getAutoloadPath();
+    }
+
     // Create database tables
     if (!fa_crm_create_tables()) {
         return false;
@@ -44,6 +51,13 @@ function fa_crm_install() {
  * Activate hook - called when module is activated
  */
 function fa_crm_activate() {
+    @include_once __DIR__ . '/vendor-src/Ksfraser/Common/ComposerDependencyManager.php';
+    if (class_exists('Ksfraser\Common\ComposerDependencyManager')) {
+        $composerMgr = new \Ksfraser\Common\ComposerDependencyManager(__DIR__);
+        $composerMgr->ensureDependencies();
+        @include_once $composerMgr->getAutoloadPath();
+    }
+
     // Register hooks
     add_hook('customer_delete', 'fa_crm_customer_delete');
     add_hook('customer_update', 'fa_crm_customer_update');
@@ -139,6 +153,7 @@ function fa_crm_create_tables() {
             `contact_id` INT(11) DEFAULT NULL,
             `sales_person` VARCHAR(100) DEFAULT NULL,
             `opportunity_type` VARCHAR(50) DEFAULT NULL,
+            `realm` VARCHAR(50) DEFAULT NULL,
             `status` VARCHAR(20) DEFAULT 'prospecting',
             `stage` VARCHAR(30) DEFAULT 'qualification',
             `source` VARCHAR(50) DEFAULT NULL,
@@ -150,12 +165,17 @@ function fa_crm_create_tables() {
             `won_notes` TEXT,
             `notes` TEXT,
             `assigned_to` VARCHAR(100) DEFAULT NULL,
+            `lead_id` INT(11) DEFAULT NULL,
             `campaign_id` INT(11) DEFAULT NULL,
+            `quote_id` INT(11) DEFAULT NULL,
+            `project_id` INT(11) DEFAULT NULL,
             `inactive` TINYINT(1) DEFAULT 0,
             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (`id`),
             KEY `idx_debtor_no` (`debtor_no`),
+            KEY `idx_lead_id` (`lead_id`),
+            KEY `idx_realm` (`realm`),
             KEY `idx_status` (`status`),
             KEY `idx_stage` (`stage`),
             KEY `idx_expected_close` (`expected_close_date`)
@@ -231,7 +251,111 @@ function fa_crm_create_tables() {
             PRIMARY KEY (`id`),
             KEY `idx_entity` (`entity_type`, `entity_id`),
             KEY `idx_debtor_no` (`debtor_no`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        // CRM Leads table (links to inactive debtors as leads)
+        "CREATE TABLE IF NOT EXISTS `" . TB_PREF . "fa_crm_leads` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `debtor_no` VARCHAR(20) NOT NULL,
+            `lead_source` VARCHAR(50) DEFAULT NULL,
+            `lead_status` VARCHAR(30) DEFAULT 'new',
+            `rating` VARCHAR(30) DEFAULT NULL,
+            `annual_revenue` DECIMAL(15,2) DEFAULT NULL,
+            `employee_count` INT(11) DEFAULT NULL,
+            `industry` VARCHAR(50) DEFAULT NULL,
+            `website` VARCHAR(255) DEFAULT NULL,
+            `phone` VARCHAR(20) DEFAULT NULL,
+            `email` VARCHAR(100) DEFAULT NULL,
+            `address` TEXT,
+            `assigned_to` VARCHAR(100) DEFAULT NULL,
+            `campaign_id` INT(11) DEFAULT NULL,
+            `converted_date` DATETIME DEFAULT NULL,
+            `converted_to_debtor_no` VARCHAR(20) DEFAULT NULL,
+            `notes` TEXT,
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `idx_debtor_no` (`debtor_no`),
+            KEY `idx_lead_status` (`lead_status`),
+            KEY `idx_assigned_to` (`assigned_to`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        // CRM Contact-Account Junction table (contact can link to multiple accounts)
+        "CREATE TABLE IF NOT EXISTS `" . TB_PREF . "fa_crm_contact_accounts` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `contact_id` INT(11) NOT NULL,
+            `debtor_no` VARCHAR(20) NOT NULL,
+            `is_primary` TINYINT(1) DEFAULT 0,
+            `role` VARCHAR(50) DEFAULT NULL,
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `idx_contact_debtor` (`contact_id`, `debtor_no`),
+KEY `idx_debtor_no` (`debtor_no`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        // CRM Realms (opportunity types/categories for workflow)
+        "CREATE TABLE IF NOT EXISTS `" . TB_PREF . "fa_crm_realms` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `name` VARCHAR(50) NOT NULL,
+            `description` VARCHAR(255) DEFAULT NULL,
+            `requires_quote` TINYINT(1) DEFAULT 0,
+            `requires_project` TINYINT(1) DEFAULT 0,
+            `default_stage` VARCHAR(30) DEFAULT 'qualification',
+            `stages_json` TEXT,
+            `inactive` TINYINT(1) DEFAULT 0,
+            `sort_order` INT(11) DEFAULT 0,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `idx_name` (`name`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        // CRM Sales Quotes table
+        "CREATE TABLE IF NOT EXISTS `" . TB_PREF . "fa_crm_quotes` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `quote_no` VARCHAR(30) NOT NULL,
+            `opportunity_id` INT(11) DEFAULT NULL,
+            `debtor_no` VARCHAR(20) DEFAULT NULL,
+            `contact_id` INT(11) DEFAULT NULL,
+            `quote_date` DATE DEFAULT NULL,
+            `valid_until` DATE DEFAULT NULL,
+            `status` VARCHAR(20) DEFAULT 'draft',
+            `subtotal` DECIMAL(15,2) DEFAULT 0,
+            `tax_rate` DECIMAL(5,2) DEFAULT 0,
+            `tax_amount` DECIMAL(15,2) DEFAULT 0,
+            `total` DECIMAL(15,2) DEFAULT 0,
+            `notes` TEXT,
+            `terms` TEXT,
+            `created_by` VARCHAR(100) DEFAULT NULL,
+            `approved_by` VARCHAR(100) DEFAULT NULL,
+            `approved_date` DATETIME DEFAULT NULL,
+            `sent_date` DATETIME DEFAULT NULL,
+            `accepted_date` DATETIME DEFAULT NULL,
+            `rejected_date` DATETIME DEFAULT NULL,
+            `inactive` TINYINT(1) DEFAULT 0,
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `idx_quote_no` (`quote_no`),
+            KEY `idx_opportunity_id` (`opportunity_id`),
+            KEY `idx_debtor_no` (`debtor_no`),
+            KEY `idx_status` (`status`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        // CRM Quote Line Items
+        "CREATE TABLE IF NOT EXISTS `" . TB_PREF . "fa_crm_quote_items` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `quote_id` INT(11) NOT NULL,
+            `line_number` INT(11) DEFAULT 0,
+            `item_description` VARCHAR(255) NOT NULL,
+            `quantity` DECIMAL(10,2) DEFAULT 1,
+            `unit_price` DECIMAL(15,2) DEFAULT 0,
+            `unit` VARCHAR(20) DEFAULT NULL,
+            `discount_percent` DECIMAL(5,2) DEFAULT 0,
+            `discount_amount` DECIMAL(15,2) DEFAULT 0,
+            `line_total` DECIMAL(15,2) DEFAULT 0,
+            PRIMARY KEY (`id`),
+            KEY `idx_quote_id` (`quote_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+
     );
 
     foreach ($sql_statements as $sql) {

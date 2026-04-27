@@ -3,7 +3,35 @@
  * CRM Database Functions
  *
  * WebERP-style CRM database operations for FrontAccounting
+ * 
+ * Events: Uses ksfraser/event for PSR-14 events, which also trigger 
+ * FA hooks for cross-module integration
  */
+
+// Try to load ksfraser/event for PSR-14 events
+@include_once __DIR__ . '/../../vendor/ksfraser/event/src/Ksfraser/Event/EventManager.php';
+$use_events = class_exists('Ksfraser\Event\EventManager');
+
+function crm_dispatch_event(string $eventName, $eventData = null): void
+{
+    global $use_events;
+    
+    // Dispatch PSR-14 event (for non-FA modules)
+    if ($use_events && class_exists('Ksfraser\Event\EventManager')) {
+        try {
+            \Ksfraser\Event\EventManager::dispatchEvent($eventName, $eventData);
+        } catch (Exception $e) {
+            error_log('CRM Event Error: ' . $e->getMessage());
+        }
+    }
+    
+    // Dispatch FA hooks (for FA modules)
+    if (function_exists('add_hook')) {
+        add_hook($eventName, function($data) use ($eventData) {
+            return $eventData;
+        });
+    }
+}
 
 // ============================================================================
 // CRM CUSTOMER FUNCTIONS
@@ -142,7 +170,17 @@ function add_customer_contact($debtor_no, $contact_data)
 			" . db_escape($contact_data['notes']) . ", " . (int)$contact_data['is_primary'] . ")";
 
 	db_query($sql, "Could not add customer contact");
-	return db_insert_id();
+	$contact_id = db_insert_id();
+	
+	// Dispatch events
+	crm_dispatch_event('crm.contact.created', [
+		'contact_id' => $contact_id,
+		'debtor_no' => $debtor_no,
+		'data' => $contact_data,
+	]);
+	crm_dispatch_event('db_postinsert', ['table' => 'fa_crm_contacts', 'id' => $contact_id]);
+	
+	return $contact_id;
 }
 
 function update_customer_contact($contact_id, $contact_data)
@@ -162,12 +200,30 @@ function update_customer_contact($contact_id, $contact_data)
 	WHERE id = " . (int)$contact_id;
 
 	db_query($sql, "Could not update customer contact");
+	
+	// Dispatch events
+	crm_dispatch_event('crm.contact.updated', [
+		'contact_id' => $contact_id,
+		'data' => $contact_data,
+	]);
+	crm_dispatch_event('db_postupdate', ['table' => 'fa_crm_contacts', 'id' => $contact_id]);
 }
 
 function delete_customer_contact($contact_id)
 {
+	$sql = "SELECT * FROM " . TB_PREF . "fa_crm_contacts WHERE id = " . (int)$contact_id;
+	$result = db_query($sql);
+	$old_data = db_fetch_assoc($result);
+	
 	$sql = "DELETE FROM " . TB_PREF . "fa_crm_contacts WHERE id = " . (int)$contact_id;
 	db_query($sql, "Could not delete customer contact");
+	
+	// Dispatch events
+	crm_dispatch_event('crm.contact.deleted', [
+		'contact_id' => $contact_id,
+		'old_data' => $old_data,
+	]);
+	crm_dispatch_event('db_postdelete', ['table' => 'fa_crm_contacts', 'id' => $contact_id]);
 }
 
 function get_customer_contacts($debtor_no, $active_only = true)
@@ -2598,4 +2654,514 @@ function get_stage_class($stage) {
         'closed_lost' => 'status_lost',
     );
     return $classes[$stage] ?? '';
+}
+
+// ============================================================================
+// CRM LEADS FUNCTIONS
+// ============================================================================
+
+function add_lead($lead_data)
+{
+    $sql = "INSERT INTO " . TB_PREF . "fa_crm_leads
+        (debtor_no, lead_source, lead_status, rating, annual_revenue, employee_count,
+        industry, website, phone, email, address, assigned_to, campaign_id, notes)
+    VALUES (" . db_escape($lead_data['debtor_no']) . ",
+            " . db_escape($lead_data['lead_source']) . ",
+            " . db_escape($lead_data['lead_status']) . ",
+            " . db_escape($lead_data['rating']) . ",
+            " . db_escape($lead_data['annual_revenue']) . ",
+            " . db_escape($lead_data['employee_count']) . ",
+            " . db_escape($lead_data['industry']) . ",
+            " . db_escape($lead_data['website']) . ",
+            " . db_escape($lead_data['phone']) . ",
+            " . db_escape($lead_data['email']) . ",
+            " . db_escape($lead_data['address']) . ",
+            " . db_escape($lead_data['assigned_to']) . ",
+            " . db_escape($lead_data['campaign_id']) . ",
+            " . db_escape($lead_data['notes']) . ")";
+
+    db_query($sql, "Could not add lead");
+    $lead_id = db_insert_id();
+    
+    // Dispatch events
+    crm_dispatch_event('crm.lead.created', [
+        'lead_id' => $lead_id,
+        'debtor_no' => $lead_data['debtor_no'] ?? null,
+        'data' => $lead_data,
+    ]);
+    crm_dispatch_event('db_postinsert', ['table' => 'fa_crm_leads', 'id' => $lead_id]);
+    
+    return $lead_id;
+}
+
+function get_lead($lead_id)
+{
+    $sql = "SELECT l.*, d.name as debtor_name, d.curr_code
+        FROM " . TB_PREF . "fa_crm_leads l
+        LEFT JOIN " . TB_PREF . "debtors_master d ON l.debtor_no = d.debtor_no
+        WHERE l.id = " . db_escape($lead_id);
+    $result = db_query($sql, "Could not get lead");
+    return db_fetch_assoc($result);
+}
+
+function get_lead_by_debtor($debtor_no)
+{
+    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_leads 
+        WHERE debtor_no = " . db_escape($debtor_no) . "
+        AND converted_to_debtor_no IS NULL";
+    $result = db_query($sql, "Could not get lead");
+    return db_fetch_assoc($result);
+}
+
+function update_lead($lead_id, $lead_data)
+{
+    $sql = "UPDATE " . TB_PREF . "fa_crm_leads SET
+        lead_source = " . db_escape($lead_data['lead_source']) . ",
+        lead_status = " . db_escape($lead_data['lead_status']) . ",
+        rating = " . db_escape($lead_data['rating']) . ",
+        annual_revenue = " . db_escape($lead_data['annual_revenue']) . ",
+        employee_count = " . db_escape($lead_data['employee_count']) . ",
+        industry = " . db_escape($lead_data['industry']) . ",
+        website = " . db_escape($lead_data['website']) . ",
+        phone = " . db_escape($lead_data['phone']) . ",
+        email = " . db_escape($lead_data['email']) . ",
+        address = " . db_escape($lead_data['address']) . ",
+        assigned_to = " . db_escape($lead_data['assigned_to']) . ",
+        campaign_id = " . db_escape($lead_data['campaign_id']) . ",
+        notes = " . db_escape($lead_data['notes']) . "
+    WHERE id = " . db_escape($lead_id);
+
+    db_query($sql, "Could not update lead");
+    
+    // Dispatch events
+    crm_dispatch_event('crm.lead.updated', [
+        'lead_id' => $lead_id,
+        'data' => $lead_data,
+    ]);
+    crm_dispatch_event('db_postupdate', ['table' => 'fa_crm_leads', 'id' => $lead_id]);
+}
+
+function delete_lead($lead_id)
+{
+    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_leads WHERE id = " . db_escape($lead_id);
+    $result = db_query($sql);
+    $old_data = db_fetch_assoc($result);
+    
+    $sql = "DELETE FROM " . TB_PREF . "fa_crm_leads WHERE id = " . db_escape($lead_id);
+    db_query($sql, "Could not delete lead");
+    
+    // Dispatch events
+    crm_dispatch_event('crm.lead.deleted', [
+        'lead_id' => $lead_id,
+        'old_data' => $old_data,
+    ]);
+    crm_dispatch_event('db_postdelete', ['table' => 'fa_crm_leads', 'id' => $lead_id]);
+}
+
+function convert_lead($lead_id, $converted_debtor_no)
+{
+    $lead = get_lead($lead_id);
+    if (!$lead) return false;
+
+    // Update lead record
+    $sql = "UPDATE " . TB_PREF . "fa_crm_leads SET
+        lead_status = 'converted',
+        converted_date = NOW(),
+        converted_to_debtor_no = " . db_escape($converted_debtor_no) . "
+    WHERE id = " . db_escape($lead_id);
+    db_query($sql, "Could not convert lead");
+
+    // Insert contact-account relationship if contact exists
+    if (!empty($lead['debtor_no'])) {
+        $sql = "INSERT IGNORE INTO " . TB_PREF . "fa_crm_contact_accounts
+            (contact_id, debtor_no, is_primary, role)
+        SELECT c.id, " . db_escape($converted_debtor_no) . ", 1, 'Converted Lead'
+        FROM " . TB_PREF . "fa_crm_contacts c
+        WHERE c.debtor_no = " . db_escape($lead['debtor_no']) . "
+        LIMIT 1";
+        db_query($sql, "Could not create contact account link");
+    }
+
+    return true;
+}
+
+function get_all_leads($status = null, $assigned_to = null)
+{
+    $sql = "SELECT l.*, d.name as debtor_name
+        FROM " . TB_PREF . "fa_crm_leads l
+        LEFT JOIN " . TB_PREF . "debtors_master d ON l.debtor_no = d.debtor_no
+        WHERE 1=1";
+
+    if ($status) {
+        $sql .= " AND l.lead_status = " . db_escape($status);
+    }
+    if ($assigned_to) {
+        $sql .= " AND l.assigned_to = " . db_escape($assigned_to);
+    }
+
+    $sql .= " ORDER BY l.created_at DESC";
+
+    $result = db_query($sql, "Could not get leads");
+    $leads = array();
+    while ($row = db_fetch_assoc($result)) {
+        $leads[] = $row;
+    }
+    return $leads;
+}
+
+// ============================================================================
+// CRM CONTACT-ACCOUNT JUNCTION FUNCTIONS
+// ============================================================================
+
+function add_contact_account($contact_id, $debtor_no, $is_primary = 0, $role = null)
+{
+    $sql = "INSERT IGNORE INTO " . TB_PREF . "fa_crm_contact_accounts
+        (contact_id, debtor_no, is_primary, role)
+    VALUES (" . db_escape($contact_id) . ", " . db_escape($debtor_no) . ",
+            " . (int)$is_primary . ", " . db_escape($role) . ")";
+    db_query($sql, "Could not add contact-account relationship");
+}
+
+function remove_contact_account($contact_id, $debtor_no)
+{
+    $sql = "DELETE FROM " . TB_PREF . "fa_crm_contact_accounts
+        WHERE contact_id = " . db_escape($contact_id) . "
+        AND debtor_no = " . db_escape($debtor_no);
+    db_query($sql, "Could not remove contact-account relationship");
+}
+
+function get_contact_accounts($contact_id)
+{
+    $sql = "SELECT ca.*, d.name as debtor_name
+        FROM " . TB_PREF . "fa_crm_contact_accounts ca
+        LEFT JOIN " . TB_PREF . "debtors_master d ON ca.debtor_no = d.debtor_no
+        WHERE ca.contact_id = " . db_escape($contact_id) . "
+        ORDER BY ca.is_primary DESC";
+    $result = db_query($sql, "Could not get contact accounts");
+    $accounts = array();
+    while ($row = db_fetch_assoc($result)) {
+        $accounts[] = $row;
+    }
+    return $accounts;
+}
+
+function get_account_contacts($debtor_no)
+{
+    $sql = "SELECT c.*, ca.is_primary, ca.role
+        FROM " . TB_PREF . "fa_crm_contacts c
+        LEFT JOIN " . TB_PREF . "fa_crm_contact_accounts ca ON c.id = ca.contact_id
+        WHERE ca.debtor_no = " . db_escape($debtor_no) . "
+        OR c.debtor_no = " . db_escape($debtor_no) . "
+        ORDER BY ca.is_primary DESC, c.is_primary DESC";
+    $result = db_query($sql, "Could not get account contacts");
+    $contacts = array();
+    while ($row = db_fetch_assoc($result)) {
+        $contacts[] = $row;
+    }
+    return $contacts;
+}
+
+// ============================================================================
+// CRM REALMS FUNCTIONS
+// ============================================================================
+
+function add_realm($realm_data)
+{
+    $sql = "INSERT INTO " . TB_PREF . "fa_crm_realms
+        (name, description, requires_quote, requires_project, default_stage, stages_json, sort_order)
+    VALUES (" . db_escape($realm_data['name']) . ",
+            " . db_escape($realm_data['description']) . ",
+            " . (int)$realm_data['requires_quote'] . ",
+            " . (int)$realm_data['requires_project'] . ",
+            " . db_escape($realm_data['default_stage']) . ",
+            " . db_escape($realm_data['stages_json']) . ",
+            " . (int)$realm_data['sort_order'] . ")";
+    db_query($sql, "Could not add realm");
+    return db_insert_id();
+}
+
+function get_realm($realm_id)
+{
+    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_realms WHERE id = " . db_escape($realm_id);
+    $result = db_query($sql, "Could not get realm");
+    return db_fetch_assoc($result);
+}
+
+function get_all_realms($active_only = true)
+{
+    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_realms";
+    if ($active_only) {
+        $sql .= " WHERE inactive = 0";
+    }
+    $sql .= " ORDER BY sort_order, name";
+    $result = db_query($sql, "Could not get realms");
+    $realms = array();
+    while ($row = db_fetch_assoc($result)) {
+        $realms[] = $row;
+    }
+    return $realms;
+}
+
+function update_realm($realm_id, $realm_data)
+{
+    $sql = "UPDATE " . TB_PREF . "fa_crm_realms SET
+        name = " . db_escape($realm_data['name']) . ",
+        description = " . db_escape($realm_data['description']) . ",
+        requires_quote = " . (int)$realm_data['requires_quote'] . ",
+        requires_project = " . (int)$realm_data['requires_project'] . ",
+        default_stage = " . db_escape($realm_data['default_stage']) . ",
+        stages_json = " . db_escape($realm_data['stages_json']) . ",
+        sort_order = " . (int)$realm_data['sort_order'] . "
+    WHERE id = " . db_escape($realm_id);
+    db_query($sql, "Could not update realm");
+}
+
+function delete_realm($realm_id)
+{
+    $sql = "DELETE FROM " . TB_PREF . "fa_crm_realms WHERE id = " . db_escape($realm_id);
+    db_query($sql, "Could not delete realm");
+}
+
+// ============================================================================
+// CRM QUOTES FUNCTIONS
+// ============================================================================
+
+function add_quote($quote_data)
+{
+    $sql = "INSERT INTO " . TB_PREF . "fa_crm_quotes
+        (quote_no, opportunity_id, debtor_no, contact_id, quote_date, valid_until, status,
+        subtotal, tax_rate, tax_amount, total, notes, terms, created_by)
+    VALUES (" . db_escape($quote_data['quote_no']) . ",
+            " . db_escape($quote_data['opportunity_id']) . ",
+            " . db_escape($quote_data['debtor_no']) . ",
+            " . db_escape($quote_data['contact_id']) . ",
+            " . db_escape($quote_data['quote_date']) . ",
+            " . db_escape($quote_data['valid_until']) . ",
+            " . db_escape($quote_data['status']) . ",
+            " . db_escape($quote_data['subtotal']) . ",
+            " . db_escape($quote_data['tax_rate']) . ",
+            " . db_escape($quote_data['tax_amount']) . ",
+            " . db_escape($quote_data['total']) . ",
+            " . db_escape($quote_data['notes']) . ",
+            " . db_escape($quote_data['terms']) . ",
+            " . db_escape($quote_data['created_by']) . ")";
+    db_query($sql, "Could not add quote");
+    return db_insert_id();
+}
+
+function get_quote($quote_id)
+{
+    $sql = "SELECT q.*, d.name as customer_name
+        FROM " . TB_PREF . "fa_crm_quotes q
+        LEFT JOIN " . TB_PREF . "debtors_master d ON q.debtor_no = d.debtor_no
+        WHERE q.id = " . db_escape($quote_id);
+    $result = db_query($sql, "Could not get quote");
+    return db_fetch_assoc($result);
+}
+
+function get_all_quotes($opportunity_id = null, $status = null)
+{
+    $sql = "SELECT q.*, d.name as customer_name, o.opportunity_name
+        FROM " . TB_PREF . "fa_crm_quotes q
+        LEFT JOIN " . TB_PREF . "debtors_master d ON q.debtor_no = d.debtor_no
+        LEFT JOIN " . TB_PREF . "fa_crm_opportunities o ON q.opportunity_id = o.id
+        WHERE 1=1";
+
+    if ($opportunity_id) {
+        $sql .= " AND q.opportunity_id = " . db_escape($opportunity_id);
+    }
+    if ($status) {
+        $sql .= " AND q.status = " . db_escape($status);
+    }
+
+    $sql .= " ORDER BY q.created_at DESC";
+    $result = db_query($sql, "Could not get quotes");
+    $quotes = array();
+    while ($row = db_fetch_assoc($result)) {
+        $quotes[] = $row;
+    }
+    return $quotes;
+}
+
+function update_quote($quote_id, $quote_data)
+{
+    $sql = "UPDATE " . TB_PREF . "fa_crm_quotes SET
+        opportunity_id = " . db_escape($quote_data['opportunity_id']) . ",
+        debtor_no = " . db_escape($quote_data['debtor_no']) . ",
+        contact_id = " . db_escape($quote_data['contact_id']) . ",
+        quote_date = " . db_escape($quote_data['quote_date']) . ",
+        valid_until = " . db_escape($quote_data['valid_until']) . ",
+        status = " . db_escape($quote_data['status']) . ",
+        subtotal = " . db_escape($quote_data['subtotal']) . ",
+        tax_rate = " . db_escape($quote_data['tax_rate']) . ",
+        tax_amount = " . db_escape($quote_data['tax_amount']) . ",
+        total = " . db_escape($quote_data['total']) . ",
+        notes = " . db_escape($quote_data['notes']) . ",
+        terms = " . db_escape($quote_data['terms']) . "
+    WHERE id = " . db_escape($quote_id);
+    db_query($sql, "Could not update quote");
+}
+
+function delete_quote($quote_id)
+{
+    $sql = "DELETE FROM " . TB_PREF . "fa_crm_quote_items WHERE quote_id = " . db_escape($quote_id);
+    db_query($sql, "Could not delete quote items");
+    $sql = "DELETE FROM " . TB_PREF . "fa_crm_quotes WHERE id = " . db_escape($quote_id);
+    db_query($sql, "Could not delete quote");
+}
+
+function add_quote_item($quote_id, $item_data)
+{
+    $sql = "INSERT INTO " . TB_PREF . "fa_crm_quote_items
+        (quote_id, line_number, item_description, quantity, unit_price, unit, discount_percent, discount_amount, line_total)
+    VALUES (" . db_escape($quote_id) . ",
+            " . (int)$item_data['line_number'] . ",
+            " . db_escape($item_data['item_description']) . ",
+            " . db_escape($item_data['quantity']) . ",
+            " . db_escape($item_data['unit_price']) . ",
+            " . db_escape($item_data['unit']) . ",
+            " . db_escape($item_data['discount_percent']) . ",
+            " . db_escape($item_data['discount_amount']) . ",
+            " . db_escape($item_data['line_total']) . ")";
+    db_query($sql, "Could not add quote item");
+    return db_insert_id();
+}
+
+function get_quote_items($quote_id)
+{
+    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_quote_items
+        WHERE quote_id = " . db_escape($quote_id) . "
+        ORDER BY line_number";
+    $result = db_query($sql, "Could not get quote items");
+    $items = array();
+    while ($row = db_fetch_assoc($result)) {
+        $items[] = $row;
+    }
+    return $items;
+}
+
+// ============================================================================
+// OPPORTUNITY-TO-PROJECT WORKFLOW
+// ============================================================================
+
+function create_project_from_opportunity($opportunity_id, $project_name = null)
+{
+    $opp = get_crm_opportunity($opportunity_id);
+    if (!$opp) return null;
+
+    // Get realm to check if project is required
+    $realm = null;
+    if (!empty($opp['realm'])) {
+        $realms = get_all_realms(false);
+        foreach ($realms as $r) {
+            if ($r['name'] == $opp['realm']) {
+                $realm = $r;
+                break;
+            }
+        }
+    }
+
+    // Check if project required by realm
+    if ($realm && !$realm['requires_project']) {
+        return null;
+    }
+
+    // Create project in FA_PM
+    if (empty($project_name)) {
+        $project_name = $opp['opportunity_name'] . ' Project';
+    }
+
+    // Insert into fa_pm_projects if the table exists
+    $sql = "INSERT INTO " . TB_PREF . "fa_pm_projects
+        (project_id, name, description, customer_id, status, start_date, lead_source)
+    VALUES (
+        " . db_escape('PRJ-' . $opportunity_id) . ",
+        " . db_escape($project_name) . ",
+        " . db_escape($opp['notes']) . ",
+        " . db_escape($opp['debtor_no']) . ",
+        'Planning',
+        NOW(),
+        " . db_escape($opp['source']) . "
+    )";
+    
+    // Try - may not exist if PM module not installed
+    @$result = db_query($sql);
+    if (!$result) return null;
+
+    $project_id = db_insert_id();
+
+    // Update opportunity with project link
+    $sql = "UPDATE " . TB_PREF . "fa_crm_opportunities SET
+        project_id = " . db_escape($project_id) . "
+    WHERE id = " . db_escape($opportunity_id);
+    db_query($sql, "Could not update opportunity");
+
+    // Create default tasks for timesheet tracking
+    if ($project_id) {
+        $tasks = array(
+            'Project Setup' => 'Initial project setup and planning',
+            'Requirements Gathering' => 'Collect and document requirements',
+            'Design' => 'Design phase',
+            'Development' => 'Development work',
+            'Testing' => 'Testing and QA',
+            'Deployment' => 'Deployment and handoff',
+            'Timesheet Review' => 'Review and approve timesheets',
+        );
+        
+        foreach ($tasks as $task_name => $task_desc) {
+            @$this->add_task(array(
+                'project_id' => $project_id,
+                'task_name' => $task_name,
+                'description' => $task_desc,
+                'status' => 'Pending',
+            ));
+        }
+    }
+
+    return $project_id;
+}
+
+function close_opportunity_won($opportunity_id, $new_stage = 'closed_won')
+{
+    $opp = get_crm_opportunity($opportunity_id);
+    if (!$opp) return false;
+
+    // Update stage to closed_won
+    $sql = "UPDATE " . TB_PREF . "fa_crm_opportunities SET
+        stage = " . db_escape($new_stage) . ",
+        status = 'won',
+        actual_close_date = NOW()
+    WHERE id = " . db_escape($opportunity_id);
+    db_query($sql, "Could not close opportunity");
+
+    // Get realm to check workflow requirements
+    $realm = null;
+    if (!empty($opp['realm'])) {
+        $realms = get_all_realms(false);
+        foreach ($realms as $r) {
+            if ($r['name'] == $opp['realm']) {
+                $realm = $r;
+                break;
+            }
+        }
+    }
+
+    // Create project if required
+    if ($realm && $realm['requires_project']) {
+        create_project_from_opportunity($opportunity_id);
+    }
+
+    return true;
+}
+
+function close_opportunity_lost($opportunity_id, $lost_reason)
+{
+    $sql = "UPDATE " . TB_PREF . "fa_crm_opportunities SET
+        stage = 'closed_lost',
+        status = 'lost',
+        lost_reason = " . db_escape($lost_reason) . ",
+        actual_close_date = NOW()
+    WHERE id = " . db_escape($opportunity_id);
+    db_query($sql, "Could not close opportunity");
+    return true;
 }
