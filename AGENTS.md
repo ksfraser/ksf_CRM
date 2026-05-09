@@ -34,12 +34,139 @@ Ksfraser\<Module>\           # Generic business logic
 Ksfraser\<Platform>\<Module> # Platform-specific (FA, WP, WOO, etc.)
 Ksfraser\Exceptions\...      # Shared exception library
 Ksfraser\Traits\...          # Shared trait library
+Ksfraser\Core\...            # Core entities and base classes
 ```
 
 **Examples:**
 - `Ksfraser\CRM\Exception\CRMException` → Local, module-specific
 - `Ksfraser\Exceptions\CRM\CRMException` → Shared library
 - `Ksfraser\Exceptions\Domain\EntityNotFoundException` → Generic domain
+
+---
+
+## Entity Base Class Pattern
+
+### Legacy Inheritance Migration
+
+**Historical Problem:** Legacy modules had extensive inheritance with:
+- Magic methods (`__get`, `__set`) calling type validators
+- Event notifications in setters (`NOTIFY_*`, `NOTIFY_LOG`)
+- CRUD hooks via `hook_invoke_all()`
+
+**Migration Pattern:** Replace inheritance with trait composition:
+
+```php
+// OLD: Deep inheritance hierarchy
+class Customer extends BaseCRM {
+    protected $name;
+    public function __set($k, $v) {
+        validate_type($k, $v);  // Type validation in magic setter
+        $this->$k = $v;
+        $this->notify("NOTIFY_SET_{$k}", $v);  // Event notification
+    }
+}
+
+// NEW: Trait-based composition
+class Customer {
+    use ValidatableTrait;      // Type validation
+    use EventEmitterTrait;     // Event notifications
+    use EntityStateTrait;      // State tracking
+    use TimestampTrait;         // Created/updated timestamps
+    
+    private ?string $name = null;
+    
+    public function setName(string $name): self
+    {
+        $this->assertNotEmptyString($name, 'name');
+        $this->name = $name;
+        $this->markModified();
+        $this->emit('customer.name.changed', $name);
+        return $this;
+    }
+}
+```
+
+### BaseEntity (Future: KSFII/Core)
+
+A `Ksfraser\Core\BaseEntity` will be created in the future for common entity functionality. Until then, use traits:
+
+```php
+namespace Ksfraser\EmailManager\Entity;
+
+use Ksfraser\Traits\ValidatableTrait;
+use Ksfraser\Traits\TimestampTrait;
+use Ksfraser\Traits\EntityStateTrait;
+
+class MailingList {
+    use ValidatableTrait;
+    use TimestampTrait;
+    use EntityStateTrait;
+    
+    private ?string $listName = null;
+    
+    // Fluent setters with validation
+    public function setListName(string $name): self
+    {
+        $this->assertNotEmptyString($name, 'listName');
+        $this->listName = $name;
+        $this->markModified();
+        return $this;
+    }
+    
+    // Virtual getters via trait
+    public function getListName(): ?string
+    {
+        return $this->listName;
+    }
+}
+```
+
+---
+
+## Event/Hook Integration
+
+### PSR-14 Event Dispatcher
+
+```php
+use Ksfraser\Traits\EventEmitterTrait;
+
+class CustomerService {
+    use EventEmitterTrait;
+    
+    public function create(array $data): Customer
+    {
+        $customer = new Customer($data);
+        $customer->setName($data['name']);
+        
+        $this->emit('customer.created', $customer);
+        
+        return $customer;
+    }
+}
+```
+
+### FrontAccounting Hook Integration
+
+FA modules use `hook_invoke_all()` for plugin extensibility:
+
+```php
+// In FA platform adapter
+function customer_dispatch_event(string $eventName, $eventData = null): void
+{
+    // Dispatch PSR-14 event
+    if ($container->has(EventDispatcherInterface::class)) {
+        $dispatcher = $container->get(EventDispatcherInterface::class);
+        $dispatcher->dispatch(new CustomerEvent($eventName, $eventData));
+    }
+    
+    // Also call FA hook for legacy plugins
+    if (function_exists('add_hook')) {
+        add_hook($eventName, function($data) use ($eventData) { 
+            return $eventData; 
+        });
+    }
+}
+```
 
 ---
 
@@ -126,7 +253,7 @@ doc/ProjectDocuments/
 
 ### Coverage Requirements
 - **Target**: 100% code coverage
-- Skipped tests = failed tests (treat as incomplete)
+- **Skipped tests = failed tests** (treat as incomplete)
 - All new code requires tests
 
 ### Test Structure
@@ -184,24 +311,6 @@ docs(readme): update installation steps
 
 ---
 
-## Dependency Management
-
-### Repository Configuration
-```json
-{
-    "repositories": [
-        {"type": "vcs", "url": "https://github.com/ksfraser/Exceptions"},
-        {"type": "vcs", "url": "https://github.com/ksfraser/Traits"}
-    ],
-    "require": {
-        "ksfraser/exceptions": "^1.0",
-        "ksfraser/traits": "^1.0"
-    }
-}
-```
-
----
-
 ## Design Patterns
 
 ### Repository Pattern
@@ -218,6 +327,11 @@ docs(readme): update installation steps
 - Complex object creation
 - Dependency resolution
 - Configuration-driven
+
+### Trait Composition Pattern
+- Replace deep inheritance with trait composition
+- Each trait has single responsibility
+- Combine traits for complex behaviors
 
 ---
 
@@ -261,29 +375,6 @@ docs(readme): update installation steps
 - [ ] `.gitignore` excludes vendor/ and composer.lock
 - [ ] ProjectDocs updated for architecture changes
 - [ ] UML diagrams updated for complex functions
-
----
-
-## Workflow Guidelines
-
-### Starting New Work
-1. Create feature branch from main
-2. Write tests first (TDD)
-3. Implement minimal code to pass
-4. Refactor while keeping tests green
-5. Update documentation
-
-### Before Committing
-- Run full test suite
-- Run linter (`phpcs --standard=PSR12`)
-- Update UML if architecture changed
-- Update RTM if requirements added
-
-### Pull Request Requirements
-- All tests passing
-- Code coverage maintained or improved
-- Documentation updated
-- No merge conflicts
 
 ---
 
