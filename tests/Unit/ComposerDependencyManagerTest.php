@@ -3,7 +3,7 @@
  * ComposerDependencyManager Test for FA_CRM
  */
 
-namespace Tests\Unit;
+namespace Ksfraser\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Ksfraser\Common\ComposerDependencyManager;

@@ -15,6 +15,7 @@ namespace FA\Modules\CRM;
 use FA\Events\EventDispatcherInterface;
 use FA\Database\DBALInterface;
 use FA\Services\SalesService;
+use Ksfraser\Exceptions\CRM\{CRMException, CRMCustomerNotFoundException, CRMCustomerAlreadyExistsException, CRMCustomerValidationException, CRMContactNotFoundException, CRMContactValidationException, CRMOpportunityNotFoundException, CRMOpportunityValidationException, CRMOpportunityStatusTransitionException, CRMCommunicationNotFoundException, CRMCommunicationValidationException, CRMCommunicationStatusException, CRMDatabaseException, CRMPermissionException, CRMConfigurationException, CRMIntegrationException};
 use Psr\Log\LoggerInterface;
 
 /**
