@@ -516,5 +516,41 @@ The CRM module provides:
 - closed_lost
 
 ---
-*Document Version: 1.0.0*
-*Last Updated: 2024-04-26*
+
+## 13. Dependencies
+
+### 13.1 Composer Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| ksfraser/exceptions | ^1.2 | Exception hierarchy (Domain, Utility, CRM-specific) |
+| ksfraser/traits | ^1.0 | Trait library (ValidatableTrait, TimestampTrait, etc.) |
+
+### 13.2 Exception Usage
+
+All exceptions extend `Ksfraser\Exceptions\Domain\CRMException` or specific subclasses:
+
+| Exception | Extends | Usage |
+|-----------|---------|-------|
+| `CRMException` | `\RuntimeException` | Base CRM exception |
+| `CRMCustomerNotFoundException` | `CRMException` | Customer not found |
+| `CRMValidationException` | `CRMException` | Validation failures |
+| `CRMDatabaseException` | `CRMException` | Database errors |
+| `CRMContactNotFoundException` | `CRMException` | Contact not found |
+| `CRMTaskNotFoundException` | `CRMException` | Task not found |
+| `CRMOpportunityNotFoundException` | `CRMException` | Opportunity not found |
+
+### 13.3 Trait Usage
+
+Entities use traits from `Ksfraser\Traits`:
+
+| Trait | Purpose |
+|-------|---------|
+| `ValidatableTrait` | Type validation and assertion methods |
+| `TimestampTrait` | created_at/updated_at management |
+| `EntityStateTrait` | Entity state tracking (new, clean, dirty) |
+
+---
+
+*Document Version: 1.1.0*
+*Last Updated: 2026-05-10*
