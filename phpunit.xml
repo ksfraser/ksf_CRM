@@ -4,7 +4,8 @@
          bootstrap="tests/bootstrap.php"
          colors="true"
          cacheDirectory=".phpunit.cache"
-         failOnWarning="true">
+         executionOrder="depends,defects"
+         beStrictAboutOutputDuringTests="true">
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
@@ -12,7 +13,7 @@
     </testsuites>
     <source>
         <include>
-            <directory suffix=".php">vendor-src</directory>
+            <directory suffix=".php">src</directory>
         </include>
     </source>
 </phpunit>

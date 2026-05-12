@@ -134,6 +134,33 @@ This RTM maps Business Requirements → Functional Requirements → Test Cases f
 
 ---
 
+## 8. Unit Tests (2026-05-12)
+
+| Test Class | Tests | Status |
+|------------|-------|--------|
+| CustomerTest | 10 | ✓ |
+| ContactTest | 9 | ✓ |
+| OpportunityTest | 8 | ✓ |
+| CustomerServiceTest | 8 | ✓ |
+
+---
+
+## 9. Implementation Status
+
+| Component | Status | Date |
+|-----------|--------|------|
+| Entity/Customer.php | ✓ Implemented | 2026-05-11 |
+| Entity/Contact.php | ✓ Implemented | 2026-05-11 |
+| Entity/Opportunity.php | ✓ Implemented | 2026-05-11 |
+| Entity/Communication.php | ✓ Implemented | 2026-05-11 |
+| Service/CustomerService.php | ✓ Implemented | 2026-05-11 |
+| Service/OpportunityService.php | ✓ Implemented | 2026-05-11 |
+| Service/CommunicationService.php | ✓ Implemented | 2026-05-11 |
+| Event/* | ✓ Implemented | 2026-05-11 |
+| tests/ | ✓ Implemented | 2026-05-12 |
+
+---
+
 ## 8. Defects Linked to Requirements
 
 | Defect ID | Requirement | Severity | Status |
