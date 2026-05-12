@@ -23,11 +23,11 @@ class OpportunityTest extends TestCase
         $this->assertSame('cust_123', $this->opportunity->getCustomerId());
     }
 
-    public function testSetAndGetTitle(): void
+    public function testSetAndGetName(): void
     {
-        $result = $this->opportunity->setTitle('New Deal');
+        $result = $this->opportunity->setName('New Deal');
         $this->assertSame($this->opportunity, $result);
-        $this->assertSame('New Deal', $this->opportunity->getTitle());
+        $this->assertSame('New Deal', $this->opportunity->getName());
     }
 
     public function testSetAndGetAmount(): void
@@ -48,7 +48,7 @@ class OpportunityTest extends TestCase
     {
         $this->opportunity->setStage(Opportunity::STAGE_QUALIFICATION);
         $this->opportunity->advanceStage();
-        $this->assertSame(Opportunity::STAGE_PROPOSAL, $this->opportunity->getStage());
+        $this->assertSame(Opportunity::STAGE_NEEDS_ANALYSIS, $this->opportunity->getStage());
     }
 
     public function testCloseWon(): void
@@ -69,7 +69,7 @@ class OpportunityTest extends TestCase
     {
         $this->opportunity->setId('opp_123');
         $this->opportunity->setCustomerId('cust_456');
-        $this->opportunity->setTitle('Enterprise Deal');
+        $this->opportunity->setName('Enterprise Deal');
         $this->opportunity->setAmount(100000.00);
         $this->opportunity->setStage(Opportunity::STAGE_PROPOSAL);
 
@@ -77,7 +77,7 @@ class OpportunityTest extends TestCase
 
         $this->assertSame('opp_123', $array['id']);
         $this->assertSame('cust_456', $array['customer_id']);
-        $this->assertSame('Enterprise Deal', $array['title']);
+        $this->assertSame('Enterprise Deal', $array['name']);
         $this->assertSame(100000.00, $array['amount']);
         $this->assertSame(Opportunity::STAGE_PROPOSAL, $array['stage']);
     }
@@ -87,7 +87,7 @@ class OpportunityTest extends TestCase
         $data = [
             'id' => 'opp_789',
             'customer_id' => 'cust_001',
-            'title' => 'New Opportunity',
+            'name' => 'New Opportunity',
             'amount' => 75000.00,
             'stage' => Opportunity::STAGE_QUALIFICATION,
         ];
@@ -96,7 +96,7 @@ class OpportunityTest extends TestCase
 
         $this->assertSame('opp_789', $opp->getId());
         $this->assertSame('cust_001', $opp->getCustomerId());
-        $this->assertSame('New Opportunity', $opp->getTitle());
+        $this->assertSame('New Opportunity', $opp->getName());
         $this->assertSame(75000.00, $opp->getAmount());
         $this->assertSame(Opportunity::STAGE_QUALIFICATION, $opp->getStage());
     }

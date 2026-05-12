@@ -229,6 +229,11 @@ class Customer
         return $this;
     }
 
+    public function isVip(): bool
+    {
+        return $this->annualRevenue >= 500000 || $this->employeeCount >= 100;
+    }
+
     public function getCreatedAt(): ?\DateTime
     {
         return $this->createdAt;
