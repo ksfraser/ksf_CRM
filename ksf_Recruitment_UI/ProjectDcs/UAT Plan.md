@@ -135,7 +135,108 @@ Validate UI adapter functionality for recruitment management.
 
 ---
 
-## 3. Sign-Off
+## 3. Integration UAT Scenarios
+
+### UAT-REC-007: Employee Self-Service View via WP_ESS
+**Scenario**: Employee views recruitment status via WP_ESS
+
+**Steps**:
+1. Login to WP_ESS as current employee
+2. Navigate to Recruitment section
+3. View open positions
+4. Apply for position (if internal posting)
+5. Track application status
+
+**Expected Results**:
+- [ ] Employee sees only relevant positions
+- [ ] Internal application form works
+- [ ] Status updates visible
+- [ ] Employee sees own applications only
+
+**Status**: ☐ Pass  ☐ Fail  ☐ N/A
+
+---
+
+### UAT-REC-008: Manager Approval Workflow
+**Scenario**: Hiring Manager approves position requisition
+
+**Steps**:
+1. Navigate to pending job openings
+2. Review requisition details
+3. Click "Approve"
+4. Add budget confirmation
+5. Submit to HR
+
+**Expected Results**:
+- [ ] Approval logged with timestamp
+- [ ] HR notified of approval
+- [ ] Status updated to "HR Review"
+- [ ] Audit trail recorded
+
+**Status**: ☐ Pass  ☐ Fail  ☐ N/A
+
+---
+
+### UAT-REC-009: Project Manager Position View
+**Scenario**: Project Manager views project-linked positions
+
+**Steps**:
+1. Login as Project Manager
+2. Navigate to Projects
+3. Open project with active recruitment
+4. View linked job openings
+5. See candidate pipeline for project
+
+**Expected Results**:
+- [ ] Project positions visible to PM
+- [ ] Candidate count shown per position
+- [ ] Pipeline status displayed
+- [ ] PM can add comments to requisition
+
+**Status**: ☐ Pass  ☐ Fail  ☐ N/A
+
+---
+
+### UAT-REC-010: Family Company Recruitment Access
+**Scenario**: Parent company recruiter sees child company positions
+
+**Steps**:
+1. Login as parent company recruiter
+2. Navigate to Recruitment > All Positions
+3. View positions across family structure
+4. Filter by subsidiary company
+5. Access candidate data for child company
+
+**Expected Results**:
+- [ ] Parent sees child company positions (default)
+- [ ] Gift-flagged contract positions hidden
+- [ ] Filter by subsidiary works correctly
+- [ ] Separate subsidiary views accessible
+
+**Status**: ☐ Pass  ☐ Fail  ☐ N/A
+
+---
+
+### UAT-REC-011: Contract-Linked Recruitment Visibility
+**Scenario**: Contact with contract access views linked job openings
+
+**Steps**:
+1. Login as contact with contract visibility
+2. Navigate to Recruitment section
+3. View positions linked to accessible contracts
+4. See candidates for contract positions
+
+**Expected Results**:
+- [ ] Only contract-linked positions visible
+- [ ] Contract scope filtering works
+- [ ] Candidate visibility matches contract
+- [ ] Non-contract positions hidden
+
+**Status**: ☐ Pass  ☐ Fail  ☐ N/A
+
+---
+
+## 4. Sign-Off
 
 | Role | Name | Signature | Date |
 |------|------|-----------|------|
@@ -145,5 +246,14 @@ Validate UI adapter functionality for recruitment management.
 
 ---
 
-*Document Version: 1.0.0*
-*Last Updated: 2026-05-11*
+## Appendix: Cross-Reference
+
+| Document | Reference |
+|----------|-----------|
+| Functional Requirements | [Functional Requirements.md](./Functional Requirements.md) |
+| Test Plan | [Test Plan.md](./Test Plan.md) |
+| RTM | [RTM.md](./RTM.md) |
+| Business Requirements | [Business Requirements.md](./Business Requirements.md) |
+
+*Document Version: 1.1.0*
+*Last Updated: 2026-05-13*

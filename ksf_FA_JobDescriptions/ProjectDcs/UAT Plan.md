@@ -272,7 +272,112 @@ Validate FrontAccounting adapter functionality for job description management.
 
 ---
 
-## 3. Sign-Off
+## 3. Integration UAT Scenarios
+
+### UAT-JD-013: Employee View via WP_ESS
+**Scenario**: Employee views assigned job description via WP_ESS
+
+**Steps**:
+1. Login to WP_ESS as employee
+2. Navigate to My Profile > My Role
+3. View assigned job description
+4. See competency requirements for role
+5. View gap analysis (if ksf_Performance linked)
+
+**Expected Results**:
+- [ ] Job description displays correctly
+- [ ] Competencies shown with required levels
+- [ ] Own proficiency levels visible (if ksf_Performance available)
+- [ ] Gap analysis accessible with training recommendations
+
+**Status**: ☐ Pass  ☐ Fail  ☐ N/A
+
+---
+
+### UAT-JD-014: Manager Access to Team Job Descriptions
+**Scenario**: Department Head accesses and reviews team job descriptions
+
+**Steps**:
+1. Login as Department Head
+2. Navigate to HRM > Job Descriptions
+3. View all department job descriptions
+4. Compare team competency matrix
+5. Identify training needs for team
+
+**Expected Results**:
+- [ ] All department job descriptions visible
+- [ ] Competency matrix accessible
+- [ ] Gap analysis for team members shown
+- [ ] Training recommendations displayed
+- [ ] Only own department accessible
+
+**Status**: ☐ Pass  ☐ Fail  ☐ N/A
+
+---
+
+### UAT-JD-015: Project Manager Job Description Access
+**Scenario**: Project Manager views project-related job descriptions
+
+**Steps**:
+1. Login as Project Manager
+2. Navigate to Projects
+3. Open project with active contract
+4. View job descriptions linked to project
+5. See team member qualifications vs requirements
+
+**Expected Results**:
+- [ ] Project-related job descriptions visible
+- [ ] Team qualifications shown
+- [ ] Contract terms accessible to PM
+- [ ] PM can add comments to requisition
+
+**Status**: ☐ Pass  ☐ Fail  ☐ N/A
+
+---
+
+### UAT-JD-016: HR Manager Full Admin Access
+**Scenario**: HR Manager with admin role manages all job descriptions
+
+**Steps**:
+1. Login as HR Admin
+2. Navigate to HRM > Job Descriptions
+3. Create/edit/archive any job description
+4. Manage competency library
+5. Configure job description templates
+6. View department reports
+7. Access system settings
+
+**Expected Results**:
+- [ ] Full CRUD on all job descriptions
+- [ ] Competency library management
+- [ ] Template configuration
+- [ ] Department reports accessible
+- [ ] System settings accessible
+
+**Status**: ☐ Pass  ☐ Fail  ☐ N/A
+
+---
+
+### UAT-JD-017: Privacy: Gift Transaction Job Description
+**Scenario**: HR sees private job descriptions (gift transaction contracts)
+
+**Steps**:
+1. Login as HR Admin
+2. Navigate to Job Descriptions
+3. View list - includes gift-flagged items (visible to HR)
+4. Search for specific position
+5. Verify access controls
+
+**Expected Results**:
+- [ ] HR sees gift-flagged job descriptions
+- [ ] Sales/Support limited to assigned
+- [ ] Other employees see general positions only
+
+**Status**: ☐ Pass  ☐ Fail  ☐ N/A
+
+---
+
+## 4. Sign-Off
 
 | Role | Name | Signature | Date |
 |------|------|-----------|------|
@@ -282,5 +387,14 @@ Validate FrontAccounting adapter functionality for job description management.
 
 ---
 
-*Document Version: 1.0.0*
-*Last Updated: 2026-05-11*
+## Appendix: Cross-Reference
+
+| Document | Reference |
+|----------|-----------|
+| Functional Requirements | [Functional Requirements.md](./Functional Requirements.md) |
+| Test Plan | [Test Plan.md](./Test Plan.md) |
+| RTM | [RTM.md](./RTM.md) |
+| Business Requirements | [Business Requirements.md](./Business Requirements.md) |
+
+*Document Version: 1.1.0*
+*Last Updated: 2026-05-13*
