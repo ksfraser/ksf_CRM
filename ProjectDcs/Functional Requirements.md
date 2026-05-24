@@ -194,6 +194,7 @@ ksf_CRM provides comprehensive customer relationship management including custom
 |---------|---------|---------|
 | ksfraser/exceptions | ^1.2 | Exception hierarchy |
 | ksfraser/traits | ^1.0 | Trait library |
+| ksfraser/rbac | ^0.1 | RBAC/ABAC access control |
 | psr/event-dispatcher | ^2.0 | PSR-14 events |
 
 ## 5. Exceptions
@@ -208,5 +209,73 @@ ksf_CRM provides comprehensive customer relationship management including custom
 
 ---
 
+## 6. RBAC Security Requirements
+
+### FR-CRM-009: RBAC Integration
+**Requirement**: All CRM record queries MUST be filtered through a JOIN against `0_rbac_record_access` and `0_rbac_team_members`. No record is returned without a matching RBAC row.
+
+**Verification**:
+- `SELECT` queries on customers, contacts, opportunities, and communications include the RBAC JOIN
+- Removing a user from a team immediately removes record visibility
+- No secondary application-layer permission check exists for reads
+
+### FR-CRM-010: Teams-Only Access
+**Requirement**: All access grants target teams, never individual users. Every user has an `{userId}_individual` team for personal grants. No direct user-to-record `0_rbac_record_access` rows exist.
+
+**Verification**:
+- All `team_id` values in `0_rbac_record_access` reference `0_rbac_teams`
+- Individual access implemented via `{userId}_individual` team
+- API rejects any grant that does not specify a team ID
+
+### FR-CRM-011: DTO Projections
+**Requirement**: All CRM entities MUST define named projection constants (`PROJECTION_PUBLIC`, `PROJECTION_ACCOUNT`, `PROJECTION_FULL`). Data access objects MUST filter fields based on the projection granted in `0_rbac_record_access`.
+
+**Projections per entity**:
+
+| Entity | PUBLIC | ACCOUNT | FULL |
+|--------|--------|---------|------|
+| Customer | name, phone, email, status | — | — |
+| Customer (ACCOUNT) | — | + credit_rating, ar_balance, segment | — |
+| Customer (FULL) | — | — | all fields |
+| Contact | name, email, phone | — | all fields incl. address, PII |
+| Opportunity | name, stage, probability, amount | — | all fields incl. notes, internal comments |
+| Communication | subject, type, date, direction | — | all fields incl. description, outcome |
+
+### FR-CRM-012: Soft Delete
+**Requirement**: The system MUST NOT hard-delete CRM records. All deletes set `deleted=1`, `deleted_by`, `deleted_at`. Hard delete is a super-admin-only operation.
+
+**Verification**:
+- All entity `DELETE` operations execute `UPDATE ... SET deleted=1`
+- Standard queries include `WHERE deleted=0`
+- Users with `can_view_deleted` may query soft-deleted records
+- Hard delete requires `can_hard_delete` type-level capability
+
+### FR-CRM-013: Default Deny
+**Requirement**: Absence of an RBAC grant is equivalent to deny. No record is visible to a user who has no matching row in `0_rbac_record_access` for that record through any of their teams.
+
+**Verification**:
+- User with no team membership sees empty record lists
+- Removing the last team grant for a record makes it disappear
+- No fallback "allow all" mode exists
+
+### FR-CRM-014: Type-Level Permissions
+**Requirement**: Type-level capabilities (`can_create`, `can_hard_delete`, `can_view_deleted`) are managed through `0_rbac_role_permissions`, not through individual record xref rows.
+
+**Verification**:
+- `can_create` checked before record insertion
+- `can_hard_delete` checked before hard DELETE execution
+- `can_view_deleted` checked before including soft-deleted records in results
+
+### FR-CRM-015: Audit
+**Requirement**: All RBAC permission grants, revocations, elevation events, and deny overrides MUST be logged to the audit trail via ksfraser/rbac's `AuditLoggerInterface`.
+
+**Verification**:
+- Granting a team access to a record generates an audit entry
+- Revoking (setting `inactive=1`) generates an audit entry
+- Switch-role elevation generates an audit entry
+- Deny override application generates an audit entry
+
+---
+
 *Document Version: 1.1.0*
-*Last Updated: 2026-05-11*
+*Last Updated: 2026-05-24*

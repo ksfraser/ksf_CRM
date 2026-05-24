@@ -1,5 +1,7 @@
 # Use Cases - ksf_CRM
 
+> **All use cases are subject to RBAC enforcement per ksfraser/rbac. Users must have appropriate team-membership grants in `0_rbac_record_access` for the relevant record types.**
+
 ## UC-CRM-001: Create New Customer
 **Actor**: Sales Representative
 
@@ -243,4 +245,4 @@
    - Activity linked to master record
 
 *Document Version: 1.0.0*
-*Last Updated: 2026-05-11*
+*Last Updated: 2026-05-24*

@@ -3,7 +3,7 @@
 ## Document Information
 - **Module**: ksf_CRM
 - **Version**: 1.0.0
-- **Date**: 2026-05-11
+- **Date**: 2026-05-24
 - **Status**: Implemented
 - **Author**: KSFII Development Team
 
@@ -299,23 +299,114 @@ class Customer {
 
 ---
 
-## 8. Security & Access Control
+## 8. RBAC Integration (ksfraser/rbac)
 
-### 8.1 Access Levels
+### 8.1 RBAC Integration Overview
 
-| Role | Customers | Contacts | Opportunities | Communications |
-|------|-----------|----------|----------------|-----------------|
-| Admin | All | All | All | All |
-| Sales Manager | All | All | All | All |
-| Sales Rep | Assigned | Assigned | Assigned | Assigned |
-| Support | Assigned | Assigned | - | Assigned |
-| Marketing | Segment | Segment | - | Segment |
+ksf_CRM integrates with ksfraser/rbac for all access control. The RBAC model enforces:
 
-### 8.2 Field-Level Security
+- **Teams-only principals**: Every access grant targets teams, never individual users. Each user has an `{userId}_individual` team for personal grants.
+- **SQL JOIN enforcement**: Record visibility is structural via JOIN against `0_rbac_record_access` + `0_rbac_team_members`. No secondary permission check.
+- **Default deny**: Absence of an RBAC JOIN row means no access. No row = no record visible.
+- **Type-level capabilities**: `can_create`, `can_hard_delete`, `can_view_deleted` stored in `0_rbac_role_permissions`.
+- **Instance-level capabilities**: `can_view`, `can_edit`, `can_delete`, `can_export`, `can_print`, `can_invite`, `can_restore` stored in `0_rbac_record_access` xref rows.
 
-- Credit rating: Admin, Sales Manager only
-- Financial data: Admin, Finance only
-- Account manager assignment: Admin, Sales Manager only
+### 8.2 Module Registration
+
+CRM registers the following record types with ksfraser/rbac:
+
+| Record Type | Parent | Children | allow_invite |
+|-------------|--------|----------|--------------|
+| `customer` | — | contact, opportunity, communication | false |
+| `contact` | customer | — | false |
+| `opportunity` | customer | — | false |
+| `communication` | customer | — | false |
+
+All CRM record types disallow invite (invite-only reserved for calendar).
+
+### 8.3 Entity Projections
+
+Each entity defines named DTO projections controlling field visibility:
+
+#### Customer
+| Projection | Visible Fields |
+|------------|----------------|
+| PUBLIC | name, phone, email, status |
+| ACCOUNT | PUBLIC + credit_rating, ar_balance, segment |
+| FULL | ACCOUNT + all sensitive fields |
+
+#### Contact
+| Projection | Visible Fields |
+|------------|----------------|
+| PUBLIC | name, email, phone |
+| FULL | all fields including address, PII |
+
+#### Opportunity
+| Projection | Visible Fields |
+|------------|----------------|
+| PUBLIC | name, stage, probability, amount |
+| FULL | all fields including notes, internal comments |
+
+#### Communication
+| Projection | Visible Fields |
+|------------|----------------|
+| PUBLIC | subject, type, date, direction |
+| FULL | all fields including description, outcome |
+
+### 8.4 SQL Enforcement Pattern
+
+Every CRM entity query includes a mandatory JOIN against RBAC tables:
+
+```sql
+SELECT c.*
+FROM crm_customer c
+JOIN 0_rbac_record_access ra
+    ON ra.record_type = 'customer'
+    AND ra.record_id = c.id
+    AND ra.capability = 'can_view'
+JOIN 0_rbac_team_members tm
+    ON tm.team_id = ra.team_id
+    AND tm.user_id = :current_user_id
+WHERE c.deleted = 0;
+```
+
+No row returned from this JOIN = no access. Child entities (contact, opportunity, communication) inherit visibility through the parent customer record or have their own `0_rbac_record_access` entries.
+
+### 8.5 Capability Mapping
+
+| CRM Operation | RBAC Capability | Level |
+|---------------|-----------------|-------|
+| View record | `can_view` | Instance |
+| Edit record | `can_edit` | Instance |
+| Delete record | `can_delete` | Instance |
+| Export record | `can_export` | Instance |
+| Print record | `can_print` | Instance |
+| Create record | `can_create` | Type |
+| Hard delete | `can_hard_delete` | Type |
+| View deleted | `can_view_deleted` | Type |
+| Restore deleted | `can_restore` | Instance |
+
+### 8.6 Soft Delete Pattern
+
+All CRM deletes are soft deletes:
+
+```sql
+UPDATE crm_customer SET deleted = 1, deleted_at = NOW(), deleted_by = :user_id WHERE id = :id;
+```
+
+Records with `deleted = 1` are excluded from all standard queries. Only users with `can_view_deleted` type-level capability may query soft-deleted records. The `can_restore` instance-level capability allows setting `deleted = 0`.
+
+### 8.7 Switch-Role Elevation
+
+Users may elevate their access per-record to a higher role they hold in the team hierarchy. The default active role is the least permissive of all roles a user holds. Elevation:
+- Is per-record scope (does not change the session-wide active role)
+- Is always written to the audit log
+- Requires re-authentication if the target role has `requires_reauth = 1`
+- Is available only for roles the user actually holds
+
+### 8.8 Audit Logging
+
+Every RBAC permission grant, revoke, denial, and elevation is logged to the audit trail via ksfraser/rbac's `AuditLoggerInterface`. CRM-level events (customer.created, opportunity.stage_changed) continue to use PSR-14 as defined in section 6.3.
 
 ---
 
@@ -408,4 +499,4 @@ ksf_CRM/
 ---
 
 *Document Version: 1.0.0*
-*Last Updated: 2026-05-11*
+*Last Updated: 2026-05-24*

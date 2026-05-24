@@ -50,6 +50,12 @@ ksf_CRM (Customer Relationship Management) provides comprehensive customer manag
    - Stage-based automation
    - Follow-up reminders
 
+6. **RBAC Integration**
+   - ksfraser/rbac integration for all CRM record access enforcement
+   - Teams-based permission model replacing legacy CRM_VIEW_* / CRM_MANAGE_* permission constants
+   - Field-level access control via DTO projections (PUBLIC, ACCOUNT, FULL)
+   - Soft delete with audit trail
+
 ### Integration Dependencies
 
 #### Provided To
@@ -90,4 +96,4 @@ ksf_CRM (Customer Relationship Management) provides comprehensive customer manag
 - Phase 4: Advanced reporting, forecasting
 
 *Document Version: 1.0.0*
-*Last Updated: 2026-05-11*
+*Last Updated: 2026-05-24*

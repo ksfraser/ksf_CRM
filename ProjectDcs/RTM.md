@@ -3,7 +3,7 @@
 ## Document Information
 - **Module**: ksf_CRM
 - **Version**: 1.0.0
-- **Date**: 2026-05-11
+- **Date**: 2026-05-24
 - **Status**: Implemented
 - **Author**: KSFII Development Team
 
@@ -57,6 +57,13 @@ This RTM maps Business Requirements → Functional Requirements → Test Cases f
 | BR-AUTO-002 | Stage-based automation | FR-CRM-003 | CRM-EVENT-004 |
 | BR-AUTO-003 | Follow-up reminders | FR-CRM-006 | (ksf_Calendar integration) |
 
+### BR: RBAC Integration
+| BR ID | Description | FR | Test Cases |
+|-------|-------------|-----|------------|
+| BR-RBAC-001 | RBAC-enforced record access | FR-CRM-009 | CRM-RBAC-001, CRM-RBAC-002, CRM-RBAC-003 |
+| BR-RBAC-002 | Teams-based permission model | FR-CRM-010 | CRM-RBAC-004 |
+| BR-RBAC-003 | Field-level DTO projections | FR-CRM-011 | CRM-RBAC-005, CRM-RBAC-006 |
+
 ---
 
 ## 3. Functional Requirements Detail
@@ -71,6 +78,13 @@ This RTM maps Business Requirements → Functional Requirements → Test Cases f
 | FR-CRM-006 | Follow-up reminders | Medium | ✓ | CRM-SVC-OPP-007 |
 | FR-CRM-007 | Document attachment | Low | ✓ | (ksf_Documents integration) |
 | FR-CRM-008 | PSR-14 Events | High | ✓ | CRM-EVENT-001-007 |
+| FR-CRM-009 | RBAC integration | High | ✓ | CRM-RBAC-001, CRM-RBAC-002, CRM-RBAC-003 |
+| FR-CRM-010 | Teams-only access | High | ✓ | CRM-RBAC-004 |
+| FR-CRM-011 | DTO projections | High | ✓ | CRM-RBAC-005, CRM-RBAC-006 |
+| FR-CRM-012 | Soft delete | High | ✓ | CRM-RBAC-008 |
+| FR-CRM-013 | Default deny | High | ✓ | CRM-RBAC-004 |
+| FR-CRM-014 | Type-level permissions | High | ✓ | CRM-RBAC-009 |
+| FR-CRM-015 | Audit logging | High | ✓ | CRM-RBAC-012, CRM-RBAC-013, CRM-RBAC-014, CRM-RBAC-015 |
 
 ---
 
@@ -130,11 +144,12 @@ This RTM maps Business Requirements → Functional Requirements → Test Cases f
 | Service Tests | 35 | - | - | 90% |
 | Event Tests | 7 | - | - | 100% |
 | Integration Tests | 12 | - | - | 80% |
-| **Total** | **101** | - | - | **~92%** |
+| RBAC Tests | 15 | - | - | 100% |
+| **Total** | **116** | - | - | **~93%** |
 
 ---
 
-## 8. Unit Tests (2026-05-12)
+## 8. Unit Tests (2026-05-24)
 
 | Test Class | Tests | Status |
 |------------|-------|--------|
@@ -182,4 +197,4 @@ This RTM maps Business Requirements → Functional Requirements → Test Cases f
 ---
 
 *Document Version: 1.0.0*
-*Last Updated: 2026-05-11*
+*Last Updated: 2026-05-24*

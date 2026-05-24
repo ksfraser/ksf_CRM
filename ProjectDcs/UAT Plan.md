@@ -135,6 +135,31 @@ Validate CRM functionality: customer management, contact management, opportunity
 
 ---
 
+### UAT-CRM-007: RBAC-Enforced Access
+**Scenario**: Verify RBAC controls record visibility and field-level access
+
+**Steps**:
+1. Create user with team membership → assign to team with `can_view` + `PUBLIC` projection on a test customer
+2. Log in as that user → verify customer appears in list with only PUBLIC fields visible
+3. Create second user with NO team membership for the same customer → verify customer is NOT visible
+4. Grant second team `can_view` + `FULL` projection on the same customer → verify all fields become visible
+5. Soft-delete the customer → verify it disappears from the list
+6. Grant `can_restore` to a team → verify admin can restore the customer
+7. Verify customer reappears after restore
+
+**Expected Results**:
+- [ ] User with team grant sees only assigned customers
+- [ ] User without team grant sees no records (default deny)
+- [ ] PUBLIC projection returns limited fields (name, phone, email, status)
+- [ ] FULL projection returns all customer fields
+- [ ] Soft-deleted customer hidden from regular queries
+- [ ] Admin with `can_restore` can reverse soft delete
+- [ ] Restored customer visible again
+
+**Status**: ☐ Pass  ☐ Fail  ☐ N/A
+
+---
+
 ## 3. Sign-Off
 
 | Role | Name | Signature | Date |
@@ -146,4 +171,4 @@ Validate CRM functionality: customer management, contact management, opportunity
 ---
 
 *Document Version: 1.0.0*
-*Last Updated: 2026-05-11*
+*Last Updated: 2026-05-24*

@@ -281,5 +281,44 @@ composer test
 
 ---
 
+## 10. RBAC Integration Tests
+
+### 10.1 Query Enforcement Tests
+
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| CRM-RBAC-001 | can_view JOIN returns visible records | User with team grant sees matching records |
+| CRM-RBAC-002 | No JOIN row = no records returned | User without any grant sees empty list |
+| CRM-RBAC-003 | Team membership expansion (nested teams) | User sees records granted to parent teams |
+| CRM-RBAC-004 | Default deny — no team membership | User cannot see any records |
+
+### 10.2 Projection Tests
+
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| CRM-RBAC-005 | PUBLIC projection returns only public fields | Limited field set returned (name, email, phone) |
+| CRM-RBAC-006 | FULL projection returns all fields | All entity fields returned |
+
+### 10.3 Capability Enforcement Tests
+
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| CRM-RBAC-007 | can_edit allows record update | User with can_edit can modify record |
+| CRM-RBAC-008 | can_delete performs soft delete (deleted=1) | Record marked deleted, not removed from DB |
+| CRM-RBAC-009 | Type-level can_create allows record creation | User with can_create role permission can insert |
+| CRM-RBAC-010 | Deny override blocks access | Deny overrides any ALLOW grant for the user |
+| CRM-RBAC-011 | Switch-role elevation grants additional access | Elevated user gains higher role's capabilities |
+
+### 10.4 Audit Tests
+
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| CRM-RBAC-012 | Audit logging on permission grant | Audit entry created when team access granted |
+| CRM-RBAC-013 | Audit logging on permission revoke | Audit entry created when xref row set inactive |
+| CRM-RBAC-014 | Audit logging on deny override | Audit entry created when deny applied |
+| CRM-RBAC-015 | Audit logging on role elevation | Audit entry created on switch-role elevation |
+
+---
+
 *Document Version: 1.0.0*
-*Last Updated: 2026-05-11*
+*Last Updated: 2026-05-24*
