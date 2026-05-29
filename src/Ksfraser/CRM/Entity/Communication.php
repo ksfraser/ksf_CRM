@@ -219,7 +219,7 @@ class Communication
             'opportunity_id' => $this->opportunityId,
             'user_id' => $this->userId,
             'occurred_at' => $this->occurredAt->format('Y-m-d H:i:s'),
-            'created_at' => $this->createdAt?->format('Y-m-d H:i:s'),
+            'created_at' => $this->createdAt ? $this->createdAt->format('Y-m-d H:i:s') : null,
         ];
     }
 

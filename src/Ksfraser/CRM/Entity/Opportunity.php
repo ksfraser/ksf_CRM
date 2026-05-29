@@ -254,14 +254,14 @@ class Opportunity
             'amount' => $this->amount,
             'probability' => $this->probability,
             'stage' => $this->stage,
-            'expected_close_date' => $this->expectedCloseDate?->format('Y-m-d'),
+            'expected_close_date' => $this->expectedCloseDate ? $this->expectedCloseDate->format('Y-m-d') : null,
             'lead_source' => $this->leadSource,
             'campaign_id' => $this->campaignId,
             'assigned_to' => $this->assignedTo,
-            'closed_date' => $this->closedDate?->format('Y-m-d'),
+            'closed_date' => $this->closedDate ? $this->closedDate->format('Y-m-d') : null,
             'closed_reason' => $this->closedReason,
-            'created_at' => $this->createdAt?->format('Y-m-d H:i:s'),
-            'updated_at' => $this->updatedAt?->format('Y-m-d H:i:s'),
+            'created_at' => $this->createdAt ? $this->createdAt->format('Y-m-d H:i:s') : null,
+            'updated_at' => $this->updatedAt ? $this->updatedAt->format('Y-m-d H:i:s') : null,
         ];
     }
 

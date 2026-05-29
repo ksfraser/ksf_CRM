@@ -325,12 +325,12 @@ class Customer
             'annual_revenue' => $this->annualRevenue,
             'account_manager_id' => $this->accountManagerId,
             'credit_rating' => $this->creditRating,
-            'customer_since' => $this->customerSince?->format('Y-m-d'),
-            'last_contact_date' => $this->lastContactDate?->format('Y-m-d H:i:s'),
+            'customer_since' => $this->customerSince ? $this->customerSince->format('Y-m-d') : null,
+            'last_contact_date' => $this->lastContactDate ? $this->lastContactDate->format('Y-m-d H:i:s') : null,
             'preferred_contact_method' => $this->preferredContactMethod,
             'status' => $this->status,
-            'created_at' => $this->createdAt?->format('Y-m-d H:i:s'),
-            'updated_at' => $this->updatedAt?->format('Y-m-d H:i:s'),
+            'created_at' => $this->createdAt ? $this->createdAt->format('Y-m-d H:i:s') : null,
+            'updated_at' => $this->updatedAt ? $this->updatedAt->format('Y-m-d H:i:s') : null,
         ];
     }
 
