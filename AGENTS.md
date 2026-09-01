@@ -1,419 +1,198 @@
-# AGENTS.md - Development Guidelines
-
-> **DO NOT MODIFY THIS FILE.** Create `AGENTS.local.md` for project-specific overrides.
-
-## Core Philosophy
-
-This project follows enterprise-grade software engineering principles. Every decision should align with: **SOLID**, **DRY**, **SRP**, **DI**, and **TDD**.
-
----
-
-## Repository Architecture
-
-### Pattern: Business Logic + Platform Adapters
-
-```
-Ksfraser\<Module>\           # Business logic (framework-agnostic)
-    └── src/Ksfraser/<Module>/
-
-ksf_<Platform>_<Module>/    # Platform-specific UI & DB adapters
-    └── src/Ksfraser/<Platform>/<Module>/
-```
-
-**Examples:**
-- `ksf_CRM/` → Business logic (Ksfraser\CRM)
-- `ksf_FA_CRM/` → FrontAccounting adapter (Ksfraser\FA\CRM)
-- `ksf_WP_CRM/` → WordPress adapter (Ksfraser\WP\CRM)
-
----
-
-## Namespace Convention
-
-```php
-Ksfraser\<Module>\           # Generic business logic
-Ksfraser\<Platform>\<Module> # Platform-specific (FA, WP, WOO, etc.)
-Ksfraser\Exceptions\...      # Shared exception library
-Ksfraser\Traits\...          # Shared trait library
-Ksfraser\Core\...            # Core entities and base classes
-```
-
-**Examples:**
-- `Ksfraser\CRM\Exception\CRMException` → Local, module-specific
-- `Ksfraser\Exceptions\CRM\CRMException` → Shared library
-- `Ksfraser\Exceptions\Domain\EntityNotFoundException` → Generic domain
-
----
-
-## Entity Base Class Pattern
-
-### Legacy Inheritance Migration
-
-**Historical Problem:** Legacy modules had extensive inheritance with:
-- Magic methods (`__get`, `__set`) calling type validators
-- Event notifications in setters (`NOTIFY_*`, `NOTIFY_LOG`)
-- CRUD hooks via `hook_invoke_all()`
-
-**Migration Pattern:** Replace inheritance with trait composition:
-
-```php
-// OLD: Deep inheritance hierarchy
-class Customer extends BaseCRM {
-    protected $name;
-    public function __set($k, $v) {
-        validate_type($k, $v);  // Type validation in magic setter
-        $this->$k = $v;
-        $this->notify("NOTIFY_SET_{$k}", $v);  // Event notification
-    }
-}
-
-// NEW: Trait-based composition
-class Customer {
-    use ValidatableTrait;      // Type validation
-    use EventEmitterTrait;     // Event notifications
-    use EntityStateTrait;      // State tracking
-    use TimestampTrait;         // Created/updated timestamps
-    
-    private ?string $name = null;
-    
-    public function setName(string $name): self
-    {
-        $this->assertNotEmptyString($name, 'name');
-        $this->name = $name;
-        $this->markModified();
-        $this->emit('customer.name.changed', $name);
-        return $this;
-    }
-}
-```
-
-### BaseEntity (Future: KSFII/Core)
-
-A `Ksfraser\Core\BaseEntity` will be created in the future for common entity functionality. Until then, use traits:
-
-```php
-namespace Ksfraser\EmailManager\Entity;
-
-use Ksfraser\Traits\ValidatableTrait;
-use Ksfraser\Traits\TimestampTrait;
-use Ksfraser\Traits\EntityStateTrait;
-
-class MailingList {
-    use ValidatableTrait;
-    use TimestampTrait;
-    use EntityStateTrait;
-    
-    private ?string $listName = null;
-    
-    // Fluent setters with validation
-    public function setListName(string $name): self
-    {
-        $this->assertNotEmptyString($name, 'listName');
-        $this->listName = $name;
-        $this->markModified();
-        return $this;
-    }
-    
-    // Virtual getters via trait
-    public function getListName(): ?string
-    {
-        return $this->listName;
-    }
-}
-```
-
----
-
-## Event/Hook Integration
-
-### PSR-14 Event Dispatcher
-
-```php
-use Ksfraser\Traits\EventEmitterTrait;
-
-class CustomerService {
-    use EventEmitterTrait;
-    
-    public function create(array $data): Customer
-    {
-        $customer = new Customer($data);
-        $customer->setName($data['name']);
-        
-        $this->emit('customer.created', $customer);
-        
-        return $customer;
-    }
-}
-```
-
-### FrontAccounting Hook Integration
-
-FA modules use `hook_invoke_all()` for plugin extensibility:
-
-```php
-// In FA platform adapter
-function customer_dispatch_event(string $eventName, $eventData = null): void
-{
-    // Dispatch PSR-14 event
-    if ($container->has(EventDispatcherInterface::class)) {
-        $dispatcher = $container->get(EventDispatcherInterface::class);
-        $dispatcher->dispatch(new CustomerEvent($eventName, $eventData));
-    }
-    
-    // Also call FA hook for legacy plugins
-    if (function_exists('add_hook')) {
-        add_hook($eventName, function($data) use ($eventData) { 
-            return $eventData; 
-        });
-    }
-}
-```
-
----
-
-## Dependency Libraries
-
-Always prefer shared libraries over local duplication:
-
-| Library | Purpose | Namespace |
-|---------|---------|-----------|
-| `ksfraser/exceptions` | Exception hierarchy | `Ksfraser\Exceptions\` |
-| `ksfraser/traits` | Reusable traits | `Ksfraser\Traits\` |
-| `ksfraser/famock` | FA testing utilities | `Ksfraser\FAMock\` |
-| `ksfraser/validation` | Validation helpers | `Ksfraser\Validation\` |
-
----
-
-## Coding Standards
-
-### PHP Compatibility
-- **Minimum**: PHP 7.3
-- **Recommended**: PHP 8.0+
-- Always use `declare(strict_types=1);`
-
-### Naming Conventions
-- **Classes**: PascalCase (`CustomerService`)
-- **Methods/Functions**: camelCase (`getCustomerById`)
-- **Constants**: UPPER_SNAKE_CASE (`MAX_RETRY_COUNT`)
-- **Files**: Match class name (`CustomerService.php`)
-
-### DocBlock Standards
-```php
-/**
- * Create a new customer record.
- *
- * @param int $debtorNo The customer debtor number
- * @param array $data Customer data array
- * @return Customer The created customer entity
- * @throws CRMCustomerAlreadyExistsException If customer exists
- *
- * @since 1.0.0
- * @see CustomerRepository::update()
- */
-public function create(int $debtorNo, array $data): Customer
-```
-
-**Required tags**: `@param`, `@return`, `@throws`, `@since`
-**Optional tags**: `@see`, `@link`, `@deprecated`
-
----
-
-## Documentation Requirements
-
-### Code Documentation
-- All classes, methods, and complex logic require PHPDoc
-- Include `@UML` reference for architecture diagrams
-- Include `@BABOK` reference for requirements alignment
-
-### Project Documents (`doc/ProjectDocuments/`)
-```
-doc/ProjectDocuments/
-├── ProjectDcs/              # Project deployment & configuration
-│   ├── Architecture.md
-│   ├── Functional Requirements.md
-│   ├── Test Plan.md
-│   └── UAT Plan.md
-├── BABOK/                   # Business Analysis Body of Knowledge
-├── UML/                     # Class, sequence, component diagrams
-└── RTM/                     # Requirements Traceability Matrix
-```
-
-### UML Generation
-- Use `phpuml` or equivalent for class diagrams
-- Document complex functions with sequence diagrams
-- Update diagrams when architecture changes
-
----
-
-## Testing Standards
-
-### TDD Workflow
-1. **RED**: Write failing test
-2. **GREEN**: Write minimal code to pass
-3. **REFACTOR**: Improve while keeping tests green
-
-### Coverage Requirements
-- **Target**: 100% code coverage
-- **Skipped tests = failed tests** (treat as incomplete)
-- All new code requires tests
-
-### Test Structure
-```php
-namespace Ksfraser\Tests\Unit;
-
-use PHPUnit\Framework\TestCase;
-
-class CustomerServiceTest extends TestCase
-{
-    public function testCreateCustomerSuccess(): void
-    {
-        // Arrange
-        $service = new CustomerService($this->createMockRepo());
-
-        // Act
-        $customer = $service->create(['name' => 'Test']);
-
-        // Assert
-        $this->assertInstanceOf(Customer::class, $customer);
-    }
-}
-```
-
----
-
-## Git & Version Control
-
-### Branch Naming
-- `main` / `master` - Production-ready code
-- `feature/*` - New features
-- `fix/*` - Bug fixes
-- `refactor/*` - Code refactoring
-
-### Commit Messages
-```
-type(scope): description
-
-feat(crm): add customer segmentation
-fix(calendar): resolve timezone issue
-refactor(exceptions): simplify hierarchy
-docs(readme): update installation steps
-```
-
-### .gitignore Requirements
-```
-/vendor/
-/composer.lock
-.phpunit.cache/
-.idea/
-.vscode/
-```
-
-**Never track vendor/ or composer.lock** - each developer runs `composer install`.
-
----
-
-## Design Patterns
-
-### Repository Pattern
-- Data access abstraction
-- Interface-based design
-- Testable without database
-
-### Service Layer Pattern
-- Business logic isolation
-- Transaction management
-- Event dispatching
-
-### Factory Pattern
-- Complex object creation
-- Dependency resolution
-- Configuration-driven
-
-### Trait Composition Pattern
-- Replace deep inheritance with trait composition
-- Each trait has single responsibility
-- Combine traits for complex behaviors
-
----
-
-## Exception Handling
-
-### Hierarchy
-```
-\Exception (or \RuntimeException)
-└── Ksfraser\Exceptions\Domain\...
-└── Ksfraser\Exceptions\Utility\...
-└── Ksfraser\Exceptions\<Module>\...
-```
-
-### Module-Specific Exceptions
-- Create under `Ksfraser\Exceptions\<Module>\`
-- Extend appropriate base exception
-- Use factory methods for common cases
-
----
-
-## SOLID Principles Checklist
-
-| Principle | Description | Checklist |
-|-----------|-------------|-----------|
-| **S**ingle Responsibility | One class, one purpose | Class has one reason to change |
-| **O**pen/Closed | Open for extension, closed for modification | Use interfaces and abstraction |
-| **L**iskov Substitution | Subtypes substitutable for base types | Child classes honor parent contracts |
-| **I**nterface Segregation | Small, focused interfaces | Don't force unused methods |
-| **D**ependency Inversion | Depend on abstractions | Inject dependencies via constructor |
-
----
-
-## Code Review Checklist
-
-- [ ] All new code has tests (100% coverage target)
-- [ ] PHPDoc complete with `@param`, `@return`, `@throws`, `@since`
-- [ ] No hardcoded values (use constants/config)
-- [ ] No duplicate code (extract to shared library)
-- [ ] Dependencies injected, not instantiated
-- [ ] Exception handling for all external calls
-- [ ] `.gitignore` excludes vendor/ and composer.lock
-- [ ] ProjectDocs updated for architecture changes
-- [ ] UML diagrams updated for complex functions
-
----
-
-## Local Overrides
-
-To override these guidelines for a specific project, create:
-
-```markdown
-# AGENTS.local.md
-# Project-specific overrides for ksf_<project>
-
-## Override 1
-[Your overrides here]
-```
-
-**Note**: Core principles (SOLID, DRY, TDD) cannot be overridden.
-
-## Development Workflow
-
-All development is done in the **devel tree** (`~/Documents/ksf_CRM`).
-
-### Workflow Steps
-1. **Develop** in this repo (feature branches preferred)
-2. **Test**: run repo-appropriate tests
-3. **Lint**: `php -l` on modified PHP files (no syntax errors)
-4. **Commit** and **Push** branch to GitHub
-5. **Merge** to `master` when ready
-6. **Push** `master` to GitHub
-
-*No UAT bind point in `~/ksf_Infrastructure/fa_modules/ksf_CRM` — this repo is consumed via Composer path repos or other means.*
-
-
----
-
-## Architecture docs (hardlinked)
-
-Canonical ecosystem/architecture docs are hardlinked in this repo root
-(mode 0444): `MODULE_DIRECTORY.md`, `APP_TAB_ARCHITECTURE.md`, `PACKAGIST.md`.
-Hardlinks do NOT survive `git pull`/`checkout`/`clone` — after any git
-operation re-run:
-`ln -f /home/kevin/Documents/<doc> <repo-root>/<doc>`
-Full rule + carrier list: `/home/kevin/Documents/AGENTS_APPENDIX.md`.
+# AGENTS.md — KSF FrontAccounting Architecture Notes
+
+Operational memory for the KSF FA infrastructure codebase. Files live under
+`~/Documents/ksf_Infrastructure/fa_modules/`. This doc captures cross-module
+architecture **decisions** and findings. Read this before designing or
+refactoring anything that spans modules.
+
+> **Companion doc:** `AGENTS_ARCH.md` (co-located, hardlinked into each repo)
+> holds the shared module **conventions** and cross-repo engineering standards
+> (module layout, coding/testing standards, dev/deploy workflow, inter-module
+> hook protocols, security-area registry, FA DB gotchas). This file holds only
+> decisions.
+
+## Cross-module facts (at a glance)
+
+- **PHP 7.3 is the cross-module compatibility floor** (current prod runs 7.3 on
+  Fedora 30 until a web container is stood up; the FA container runtime is 7.4).
+  See `AGENTS_ARCH.md` §1.
+- **ksf_FA_Common is now a pure Composer/Packagist package** (v1.0.9), not an FA
+  module. It was gutted to a no-op module shell. Owning modules (RBAC, CRM,
+  Calendar, HRM, Assets) register/unregister their `ksf_contact_types` on
+  activate/deactivate via embedded `sql/retag_contact_types.sql`.
+- **Square**: composer.json `config.platform.php = 7.4.33` pinned (commit
+  `b0ef4da`) for the PHP 7.4 container; lock regeneration is blocked locally on
+  the private `ksfraser/import-staging` package.
+- **FA_ProductAttributes issue #52 (child not detected as read-only)** root cause
+  found: two parallel, un-unified parent-relationship mechanisms (see below).
+
+## The "generic data-dictionary + query-builder" direction (active design)
+
+The user wants a **generic, transport-agnostic** data-dictionary + SQL query
+builder package (suggested name `ksf_common_db`), NOT another DB class, and NOT
+in `ksf_FA_Common` (whose naming is FA-module-specific). Core requirement:
+
+> An interface defines the SQL query commands. A translation layer maps them to
+> MySQL commands when outside FA, and to FA's procedural `db_*` functions when
+> inside FA, so the correct implementation can be DI'd.
+
+Requirements/goals captured from discussion:
+- Want the **data dictionary + query builder** capabilities (from the legacy
+  `ksf_modules_common` `MODEL`/`fa_MODEL` framework).
+- **No third parallel DB-class abstraction** on top of what exists.
+- Lifecycle (pre/post CRUD) hooks should be able to tie into this system.
+- Package should be usable standalone (tests, CLI, other frameworks), not just
+  inside FA.
+
+### The pattern ALREADY exists / is partially realized (critical to not rebuild)
+1. **RBAC's `DbAdapterInterface` + `FaDbAdapter` (now generalized)** — the exact
+   two-part interface→FA-translation pattern the user described: `fetchAssoc`, `fetchAll`,
+   `executeUpdate`, `lastInsertId`. `FaDbAdapter` substitutes `?` placeholders via
+   `mysqli_real_escape_string` (FA has NO prepared statements) and regex table prefixing.
+   This served as the proof of concept and has been **genericized into the
+   `ksfraser/ksf-common-db` package** (`ksfraser\CommonDb\Contract\DbConnectionInterface` /
+   `ksfraser\CommonDb\Adapter\FaDbAdapter`); the RBAC-local copies were deleted. See that
+   package's `APPENDIX.md` for the migration.
+2. **Legacy `ksf_modules_common` (procedural, older)** — the actual data-dictionary +
+   query-builder the user remembers:
+   - `class.MODEL.php` — `fields_array` + `table_details['tablename']`/`['primarykey']`
+     dictionary; clause builders `buildSelect/From/Where/Join/GroupBy/Having/OrderBy/Limit`
+     assembled by `buildSelectQuery()`; CRUD `select_row`, `select_table`,
+     `insert_table`, `update_table`, `delete_table`, `ReplaceQuery`, `create_table`,
+     `alter_table`; `define_table()` derives tablename from class name + company prefix.
+   - `class.fa_MODEL.php` — FA subclass; sets `company_prefix = TB_PREF`.
+   - `class.eventloop.php` — Observer pattern event dispatcher: `ObserverRegister`,
+     `ObserverNotify` (with `'**'` wildcard = all), subscribers implement `notified()`.
+   - **CAVEAT**: the `eventloop` Observer hooks are wired only for `NOTIFY_INIT_TABLES`
+     → `create_table` and logging. They are NOT wired into `insert_table`/`update_table`/
+     `delete_table` as pre/post CRUD points. The `tell_eventloop(..., "NOTIFY_LOG_*", ...)`
+     calls are largely logging noise.
+3. **Modern ksf_FA_Common traits (OOP, current recommendation for hooks)**
+   - `src/Traits/WorkflowHooksTrait.php` — SuiteCRM-style lifecycle hooks. Register a
+     record type → hook prefix via `registerWorkflowType($recordType, $hookPrefix)`.
+     `fireWorkflowHook()` builds `{prefix}_{hookKey}` and calls `hook_invoke_all(...)`.
+     Hook keys: `before_save`, `after_save`, `before_delete`, `after_delete`, `new`,
+     `edited`, `linked`, `unlinked`. Convenience dispatchers + `fireWorkflowHooks()`
+     runs the full ordered sequence.
+   - `src/Traits/CrudOperationsTrait.php` — `createRecord()` / `deleteRecord()` wrappers
+     that fire pre-save → create → new/edited → post-save (and pre-delete → delete →
+     post-delete), delegating the actual DB work to overridable `*Internal()` methods.
+   - Both live in `ksfraser\FrontAccounting\Common\Traits\` (namespace is FA-flavored).
+   - Adoption is currently minimal: ksf_FA_Common's own unit tests +
+     `ksf_FA_HRM/hooks.php`. Not yet rolled out module-wide.
+
+### Naming observation
+The `registerWorkflowType($recordType, $hookPrefix)` + `{prefix}_{operation}` scheme
+already achieves what the user proposed as "DB class reads `$table_name` to build
+pre/post hook name." `$table_name` should map to a hook **prefix**, not be the literal
+hook name. Per-table hooks use `hook_invoke_all` (module-oriented dispatcher from
+`includes/hooks.inc`) — consistent with FA, zero new infra. If literal table-derived
+names are wanted, add a small table→prefix mapper, don't build a new dispatcher.
+
+### PDO question (decided: YES, PDO is the standalone impl; FA uses its own adapter)
+FA's DB layer is mysqli-based, NOT PDO (`includes/db/connect_db_mysqli.inc` uses
+`mysqli_connect/query/insert_id/errno/fetch_row`; procedural `db_query`/`db_escape`/
+`db_fetch_assoc`/`db_insert_id` wrappers; FA has NO prepared statements).
+
+Design: **make PDO the consumer contract of the interface, not the transport.** Two
+implementations of one `DbConnectionInterface` (PDO-style ops: query, executeWithParams,
+fetchAll, fetchAssoc, insertId, quote, beginTransaction/commit/rollBack):
+- `PdoDbAdapter` (standalone: tests/CLI/other frameworks) — nearly a 1:1 PDO wrapper,
+  real prepared statements, multi-driver.
+- `FaDbAdapter` (inside FA) — maps each method to FA `db_*`/mysqli calls, resolves
+  `?`/`:name` placeholders to escaped literals (FA has no prepared statements), exactly
+  like the FA adapter in `ksf-common-db` (`mysqli_real_escape_string` binding + regex
+  prefixing).
+
+**HARD RULE (user directive): FA modules MUST use native `db_*` calls at runtime.**
+PDO is ONLY for the standalone/portable side (tests, CLI, non-FA embedding). The FA
+adapter is the single, mandatory implementation inside FA and must delegate every
+operation to FA's procedural `db_query`/`db_escape`/`db_fetch_assoc`/`db_insert_id`/
+`db_num_rows`/`db_error` etc. — never a PDO handle, never raw mysqli. PDO is the
+portable *contract shape*, not a runtime transport for FA. (Note: PDO is an optional
+for the FA side: the only reason to depend on it at all is standalone usage; the FA
+adapter itself needs no PDO.)
+
+PDO and FA never meet; they are alternative DI implementations of a shared contract.
+This satisfies the user's requirement: "interface that translates SQL to MySQL outside
+FA but `db_*` inside FA so the right classes can be DI'd." This is realized by the
+`ksf-common-db` package's `DbConnectionInterface` + `FaDbAdapter`/`PdoDbAdapter`.
+
+### ksf_common_db package — implemented
+The `ksfraser/ksf-common-db` package (namespace `ksfraser\CommonDb`) exists at
+`~/Documents/ksf_common_db`, is published on Packagist (`v1.0.0`), and RBAC has
+been migrated onto it. **Repo-specific implementation/packaging/migration/gotcha
+notes live in that repo's `APPENDIX.md`** — see there for structure, consumers'
+dependency convention, the RBAC migration, and the implementation gotchas. This
+section only records the shared design decisions.
+
+Structure (high level):
+- `src/Contract/DbConnectionInterface.php` — PDO-shaped contract: `fetchAssoc`,
+  `fetchAll`, `fetchScalar`, `executeUpdate`, `lastInsertId`, `quote`, `beginTransaction`,
+  `commit`, `rollBack`. Accepts `?` (positional) or `:name` (named) placeholders.
+- `src/Adapter/FaDbAdapter.php` — FA runtime adapter; native `db_*` only.
+- `src/Adapter/PdoDbAdapter.php` — native PDO + prepared statements (NOT for FA runtime).
+- `src/Dictionary/TableDefinition.php` — data dictionary + CREATE/INSERT/UPDATE/DELETE SQL.
+- `src/Query/QueryBuilder.php` — fluent parameterized SELECT builder.
+
+NEXT STEPS (cross-module): port other modules' DAOs onto `DbConnectionInterface` +
+`TableDefinition`/`QueryBuilder`, then wire the pre/post workflow hooks
+(`WorkflowHooksTrait`/`CrudOperationsTrait` from ksf_FA_Common) onto the DAO layer.
+
+## FA core hook system (reference)
+
+`includes/hooks.inc`:
+- `hook_invoke($ext, $method, &$data, $opts)` / `hook_invoke_all($method, &$data, $opts)`
+  / `hook_invoke_first` / `hook_invoke_last` — dispatch to `$Hooks` extension objects.
+- Transaction-level DB hooks exist: `hook_db_prewrite`, `hook_db_postwrite`,
+  `hook_db_prevoid` → `hook_invoke_all('db_prewrite'|'db_postwrite'|'db_prevoid', $cart,
+  $type)`. These are CART/transaction scoped (sales orders, invoices, etc.), NOT
+  per-row CRUD. Per-row CRUD hooks are not provided by core; they come from the
+  traits/adapters above.
+
+## FA_ProductAttributes issue #52 root cause (verified)
+
+Two parallel, un-unified parent-relationship mechanisms:
+
+| Concern | `product_hierarchy` (via `ProductAttributesDao`) | `product_attribute_assignments.parent_stock_id` (via `VariationsDao`) |
+|---|---|---|
+| Writes | `setProductParent($child,$parent)` (INSERT…ON DUP UPD / DELETE) | `setParentRelationship()` (called by `CreateChildAction`) AND `addAssignment(...,$parentStockId)` |
+| Reads | `getProductParent()` — **used by `VariationsTab` for `$isChild` detection** | `getProductVariations()`, `isVariation()` |
+| Populated on CreateChildAction? | **NO** — nothing calls it | **YES** |
+
+- `VariationsDao::setParentRelationship()` (VariationsDao.php:334) writes
+  `product_attribute_assignments.parent_stock_id`.
+- `ProductAttributesDao::setProductParent()`/`getProductParent()`
+  (ProductAttributesDao.php:392/416) write/read `product_hierarchy`.
+- `CreateChildAction::handle()` calls `variationsDao->setParentRelationship($childId,
+  $stockId)` (CreateChildAction.php:88) but NEVER `setProductParent()`.
+- `VariationsTab::renderTabContent()` sets `$isChild = !empty($this->dao->getProductParent($stockId))`
+  (VariationsTab.php, ~line 51-54) and renders read-only + hides buttons when child.
+- Net: generated children (`auto-gas-L-11-36-Ind` etc.) are registered only in
+  `product_attribute_assignments`, so `product_hierarchy` is empty for them →
+  `getProductParent()` returns null → `$isChild` false → read-only protection never
+  engages → issue #52/#45 reproduce.
+- `product_hierarchy` DOES get rows when someone manually sets a parent via the
+  Product Types UI (`UpdateProductTypesAction`, `ProductAttributesTabController`).
+
+Fix implications: the create-child path must also write `product_hierarchy` (call
+`setProductParent`), OR the tab's child detection must fall back to
+`product_attribute_assignments.parent_stock_id` / `isVariation()`.
+
+## SQL prefix / install conventions (from earlier work)
+
+- SQL files use a hardcoded `0_` prefix — FA `db_import` does NOT resolve
+  `@TB_PREF@`. PHP code uses the `TB_PREF` constant. Documented in
+  `ksf_FA_Common/MODULE_DIRECTORY.md` §Table Prefix Convention.
+- Assets module SQL convention: `update_databases()` paths are relative to `sql/`
+  (uses `'install.sql'`, not `'sql/install.sql'`); others prefix with `sql/`.
+- Retag/contact-type ownership SQL lives inside each owning module's `sql/`
+  (`retag_contact_types.sql`), idempotent, wired into `activate_extension()`'s
+  `$updates`. Never in an external checklist.
+
+## Cross-module contracts principle
+
+- Any ksf module must be standalone; class availability must never be gated on
+  another module's activation state.
+- Cross-module contracts/classes live in a Packagist package (e.g. ksf_FA_Common /
+  future ksf_common_db), NOT in a module dir.
